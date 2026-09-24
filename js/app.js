@@ -670,6 +670,199 @@ async function sifreVer(id) {
   toast(r.ok ? "Şifre tanımlandı." : r.hata);
 }
 
+// --- Hazır ödevler / sınavlar / paylaşımlar ---
+const CEKIRDEK_DERSLER = {
+  5: ["turkce", "matematik", "fen", "sosyal", "ingilizce", "din"],
+  6: ["turkce", "matematik", "fen", "sosyal", "ingilizce", "din"],
+  7: ["turkce", "matematik", "fen", "sosyal", "ingilizce", "din"],
+  8: ["turkce", "matematik", "fen", "inkilap", "ingilizce", "din"]
+};
+function odevVerisiVar() { return (typeof ODEV_VERISI !== "undefined") && (typeof SINAV_VERISI !== "undefined"); }
+function odevSekme(ad) {
+  ["odev", "sinav", "paylasim"].forEach(a => {
+    const p = document.getElementById("panel" + a[0].toUpperCase() + a.slice(1));
+    if (p) p.classList.toggle("hidden", a !== ad);
+    const b = document.getElementById("sekme" + a[0].toUpperCase() + a.slice(1));
+    if (b) b.classList.toggle("aktif", a === ad);
+  });
+  if (ad === "paylasim") paylasimCiz();
+}
+function odevDersDoldur() {
+  const s = document.getElementById("oSinif");
+  if (!s || !odevVerisiVar()) return;
+  document.getElementById("oDers").innerHTML = (CEKIRDEK_DERSLER[s.value] || []).map(d => {
+    const dd = MUfredat.dersler.find(x => x.id === d);
+    return `<option value="${d}">${dd ? dd.ad : d}</option>`;
+  }).join("");
+}
+function odevCiz() {
+  const alan = document.getElementById("odevListe");
+  if (!alan || !odevVerisiVar()) return;
+  const sinif = document.getElementById("oSinif").value;
+  const ders = document.getElementById("oDers").value;
+  const dd = MUfredat.dersler.find(x => x.id === ders);
+  const liste = ((ODEV_VERISI[sinif] || {})[ders]) || [];
+  alan.innerHTML = liste.map((u, i) => `
+    <div class="kart">
+      <div class="kart-baslik flex justify-between items-center">
+        <span>${i + 1}. Ünite — ${kac(u.u)}</span>
+        <button class="arac-btn" onclick="cevapAc('cv-${sinif}-${ders}-${i}',this)">Cevapları Göster</button>
+      </div>
+      <div class="p-4">
+        <ol class="odev-sorular">
+          ${u.s.map((sr, j) => `<li><div class="font-semibold text-[13.5px]">${j + 1}) ${kac(sr[0])}</div><div class="cevap-gizli" id="cv-${sinif}-${ders}-${i}-${j}">${kac(sr[1])}</div></li>`).join("")}
+        </ol>
+      </div>
+    </div>`).join("") || `<div class="kart p-4 text-slate-500">Bu ders için ödev bulunamadı.</div>`;
+}
+function cevapAc(kok, btn) {
+  const acik = btn.dataset.acik === "1";
+  document.querySelectorAll(`[id^="${kok}-"]`).forEach(el => el.classList.toggle("goster", !acik));
+  btn.dataset.acik = acik ? "0" : "1";
+  btn.textContent = acik ? "Cevapları Göster" : "Cevapları Gizle";
+}
+let snSecimler = {}, snKilit = false;
+function sinavDersDoldur() {
+  const s = document.getElementById("snSinif");
+  if (!s || !odevVerisiVar()) return;
+  document.getElementById("snDers").innerHTML = (CEKIRDEK_DERSLER[s.value] || []).map(d => {
+    const dd = MUfredat.dersler.find(x => x.id === d);
+    return `<option value="${d}">${dd ? dd.ad : d}</option>`;
+  }).join("");
+  snSecimler = {}; snKilit = false;
+}
+function sinavCiz() {
+  const alan = document.getElementById("sinavAlani");
+  if (!alan || !odevVerisiVar()) return;
+  snSecimler = {}; snKilit = false;
+  const sonuc = document.getElementById("sinavSonuc");
+  if (sonuc) { sonuc.classList.add("hidden"); sonuc.innerHTML = ""; }
+  const sinif = document.getElementById("snSinif").value;
+  const ders = document.getElementById("snDers").value;
+  const liste = ((SINAV_VERISI[sinif] || {})[ders]) || [];
+  alan.innerHTML = liste.map((q, i) => `
+    <div class="kart p-4" id="sn-soru-${i}">
+      <div class="font-bold text-[14px] text-slate-900">${i + 1}) ${kac(q.s)}</div>
+      <div class="secenekler mt-2">
+        ${q.o.map((sec, j) => `<button class="secenek" id="sn-${i}-${j}" onclick="sinavSec(${i},${j})"><span class="secenek-harf">${"ABCD"[j]}</span> ${kac(sec)}</button>`).join("")}
+      </div>
+    </div>`).join("") || `<div class="kart p-4 text-slate-500">Bu ders için sınav bulunamadı.</div>`;
+}
+function sinavSec(si, oi) {
+  if (snKilit) return;
+  snSecimler[si] = oi;
+  for (let j = 0; j < 4; j++) {
+    const b = document.getElementById(`sn-${si}-${j}`);
+    if (b) b.classList.toggle("secili", j === oi);
+  }
+}
+function sinavKontrol() {
+  const sinif = document.getElementById("snSinif").value;
+  const ders = document.getElementById("snDers").value;
+  const liste = ((SINAV_VERISI[sinif] || {})[ders]) || [];
+  if (!liste.length) return;
+  snKilit = true;
+  let dogru = 0;
+  liste.forEach((q, i) => {
+    const sec = snSecimler[i];
+    for (let j = 0; j < 4; j++) {
+      const b = document.getElementById(`sn-${i}-${j}`);
+      if (!b) continue;
+      b.classList.remove("secili");
+      if (j === q.c) b.classList.add("dogru");
+      else if (j === sec) b.classList.add("yanlis");
+    }
+    if (sec === q.c) dogru++;
+  });
+  const puan = Math.round((dogru / liste.length) * 100);
+  const mesaj = puan >= 85 ? "Mükemmel! Konuya hâkimsin." : puan >= 65 ? "İyi gidiyorsun, yanlışlara tekrar bak." : puan >= 45 ? "Biraz daha çalışmalısın, özetlere göz at." : "Önce konu özetini okuyup tekrar dene.";
+  const sonuc = document.getElementById("sinavSonuc");
+  sonuc.classList.remove("hidden");
+  sonuc.innerHTML = `<div class="sinav-sonuc"><div class="sinav-puan">${puan}</div><div><div class="font-bold">${dogru} / ${liste.length} doğru</div><div class="text-[13px] text-slate-600">${mesaj}</div></div></div>`;
+  sonuc.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+let paylasimFiltre = { sinif: "", ders: "", q: "" };
+async function paylasimCiz() {
+  const alan = document.getElementById("paylasimListe");
+  if (!alan) return;
+  const ben = Auth.mevcut();
+  const formSar = document.getElementById("paylasimFormSar");
+  if (formSar) formSar.classList.toggle("hidden", !Paylasim.yazabilir());
+  let l = [];
+  try { l = await Paylasim.liste(paylasimFiltre); }
+  catch (e) { alan.innerHTML = `<div class="kart p-4 text-slate-500">${kac(e.message)}</div>`; return; }
+  alan.innerHTML = l.map(p => `
+    <div class="kart p-4">
+      <div class="flex flex-wrap items-center gap-2 text-[12px]">
+        ${p.sinif ? `<span class="etiket">${p.sinif}. Sınıf</span>` : `<span class="etiket">Seçmeli</span>`}
+        <span class="etiket">${kac(dersAdi(p.ders, p.sinif))}</span>
+        ${p.unite ? `<span class="etiket">${kac(p.unite)}</span>` : ""}
+        <span class="etiket etiket-meb">${ikon("kitap", 11)} Öğretmen Paylaşımı</span>
+        <span class="ml-auto text-slate-400">${tarihSaat(p.olusturma)} • ${kac(p.yazar_ad)}</span>
+      </div>
+      <div class="font-bold text-[15px] text-slate-900 mt-2">${kac(p.baslik)}</div>
+      <div class="text-[13.5px] text-slate-700 mt-1 whitespace-pre-line">${kac(p.icerik)}</div>
+      ${(ben && (ben.rol === "admin" || String(p.yazar_id) === String(ben.id))) ? `<div class="mt-2"><button class="arac-btn arac-tehlike" onclick="paylasimSil('${p.id}')">${ikon("cop", 13)} Sil</button></div>` : ""}
+    </div>`).join("") || `<div class="kart p-4 text-slate-500">Henüz paylaşım yok.</div>`;
+}
+async function paylasimGonder(e) {
+  e.preventDefault();
+  const o = {
+    sinif: document.getElementById("pFSinif").value,
+    ders: document.getElementById("pFDers").value,
+    unite: document.getElementById("pFUnite").value.trim(),
+    baslik: document.getElementById("pFBaslik").value.trim(),
+    icerik: document.getElementById("pFIcerik").value.trim()
+  };
+  try { await Paylasim.ekle(o); }
+  catch (e2) { toast(e2.message); return; }
+  document.getElementById("pFUnite").value = ""; document.getElementById("pFBaslik").value = ""; document.getElementById("pFIcerik").value = "";
+  paylasimCiz(); toast("Paylaşım yayınlandı.");
+}
+async function paylasimSil(id) {
+  if (!confirm("Bu paylaşım silinsin mi?")) return;
+  try { await Paylasim.sil(id); }
+  catch (e) { toast(e.message); return; }
+  paylasimCiz(); toast("Paylaşım silindi.");
+}
+function odevSayfasiKur() {
+  if (!document.getElementById("odevListe") || !odevVerisiVar()) return;
+  odevDersDoldur(); odevCiz();
+  sinavDersDoldur(); sinavCiz();
+  const pd = document.getElementById("pDers");
+  if (pd) pd.innerHTML = `<option value="">Ders (tümü)</option>` + MUfredat.dersler.map(d => `<option value="${d.id}">${d.ad}</option>`).join("");
+  const pfd = document.getElementById("pFDers");
+  if (pfd) pfd.innerHTML = MUfredat.dersler.map(d => `<option value="${d.id}">${d.ad}</option>`).join("");
+}
+
+/* Animasyonlar: kayarak belirme, sayaçlar, yukarı düğmesi */
+function animasyonKur() {
+  try {
+    const goz = new IntersectionObserver(es => es.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add("gorunur"); goz.unobserve(e.target); }
+    }), { threshold: 0.1 });
+    document.querySelectorAll("main section").forEach(el => { el.classList.add("reveal"); goz.observe(el); });
+  } catch (e) {}
+  const ist = document.getElementById("istKitap");
+  if (ist) {
+    const hedef = KITAPLAR.filter(k => !k.yakinda).length;
+    let simdiki = 0;
+    const adim = Math.max(1, Math.round(hedef / 40));
+    const say = setInterval(() => {
+      simdiki += adim;
+      if (simdiki >= hedef) { simdiki = hedef; clearInterval(say); }
+      ist.textContent = simdiki;
+    }, 30);
+  }
+  const yukari = document.getElementById("yukariBtn");
+  const nav = document.querySelector(".ana-nav");
+  window.addEventListener("scroll", () => {
+    if (nav) nav.classList.toggle("golge", window.scrollY > 10);
+    if (yukari) yukari.classList.toggle("goster", window.scrollY > 600);
+  }, { passive: true });
+}
+function yukariCik() { window.scrollTo({ top: 0, behavior: "smooth" }); }
+
 // --- yardımcılar ---
 function tarihKisa(t) { try { return new Date(t).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" }); } catch { return ""; } }
 function kac(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
@@ -827,11 +1020,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (sayfa === "kitaplar") kitaplarSayfasiKur();
   if (sayfa.startsWith("sinif") || sayfa === "secmeli") sinifSayfasiKur();
   if (sayfa === "forum") forumSayfasiKur();
+  if (sayfa === "odevler") odevSayfasiKur();
   await forumCiz();
   await profilCiz();
   await adminCiz();
   await mesajlariCiz();
   SohbetCanli.baslat();
+  animasyonKur();
   setInterval(() => {
     const a = document.getElementById("sayfaNo"), b = document.getElementById("sayfaNoAlt");
     if (a && b) b.textContent = "Sayfa " + a.textContent;

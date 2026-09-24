@@ -1,4 +1,4 @@
-/* Ortaokulluyuz — MEB Müfredat Verisi (2025-2026 / Türkiye Yüzyılı Maarif Modeli) */
+/* Ortaokulluyuz — MEB Müfredat Verisi (2026-2027 / Türkiye Yüzyılı Maarif Modeli) */
 const MUfredat = {
   siniflar: [5, 6, 7, 8],
   dersler: [
@@ -176,7 +176,7 @@ const KITAPLAR = [];
     const uniteler = (MUfredat.uniteler[sinif] && MUfredat.uniteler[sinif][ders]) || [baslik];
     KITAPLAR.push({
       id: "meb-" + mebId, sinif, ders, baslik,
-      yayinevi: "MEB Yayınları", yil: "2025-2026",
+      yayinevi: "MEB Yayınları", yil: "2026-2027",
       kapak: "img/kitap-" + mebId + ".webp",
       kapakRenk: (MUfredat.dersler.find(d => d.id === ders) || {}).renk || "#1B4F9C",
       uniteler, ozetSayfa: 12,
@@ -189,7 +189,7 @@ const KITAPLAR = [];
     const uniteler = (MUfredat.uniteler[sinif] && MUfredat.uniteler[sinif][ders]) || [];
     KITAPLAR.push({
       id: "yak-" + sinif + "-" + ders, sinif, ders, baslik,
-      yayinevi: "MEB Yayınları", yil: "2025-2026",
+      yayinevi: "MEB Yayınları", yil: "2026-2027",
       kapak: null,
       kapakRenk: (MUfredat.dersler.find(d => d.id === ders) || {}).renk || "#1B4F9C",
       uniteler, ozetSayfa: 12,

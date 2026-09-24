@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Hazır Ödevler ve Sınavlar — Ortaokulluyuz</title>
+<meta name="description" content="5-8. sınıf ünite ödevleri, cevap anahtarlı deneme sınavları ve öğretmen paylaşımları." />
+<link rel="icon" type="image/svg+xml" href="img/logo.svg?v=7" />
+<link rel="stylesheet" href="css/styles.css?v=8" />
+</head>
+<body data-sayfa="odevler">
+<div id="iskelet-ust"></div>
+
+<main class="sutun-dar px-4 py-5 space-y-6">
+  <div class="kirinti"><a href="index.html">Anasayfa</a> / Hazır Ödevler</div>
+  <section>
+    <div class="bolum-baslik"><span>Hazır Ödevler ve Sınavlar</span></div>
+    <p class="bolum-aciklama">Ünite kazanımlarına göre hazırlanmış <b>özgün</b> çalışma soruları (cevap anahtarlı), interaktif deneme sınavları ve öğretmen paylaşımları. Not: Bunlar MEB'in resmi cevap anahtarı değil, sitemizce hazırlanan çalışma içeriğidir.</p>
+    <div class="odev-sekmeler">
+      <button id="sekmeOdev" class="odev-sekme aktif" onclick="odevSekme('odev')">Hazır Ödevler</button>
+      <button id="sekmeSinav" class="odev-sekme" onclick="odevSekme('sinav')">Deneme Sınavları</button>
+      <button id="sekmePaylasim" class="odev-sekme" onclick="odevSekme('paylasim')">Öğretmen Paylaşımları</button>
+    </div>
+
+    <div id="panelOdev" class="mt-3">
+      <div class="kart p-3 grid md:grid-cols-2 gap-2">
+        <select id="oSinif" class="girdi" onchange="odevDersDoldur();odevCiz()">
+          <option value="5">5. Sınıf</option><option value="6">6. Sınıf</option>
+          <option value="7">7. Sınıf</option><option value="8">8. Sınıf</option>
+        </select>
+        <select id="oDers" class="girdi" onchange="odevCiz()"></select>
+      </div>
+      <div id="odevListe" class="space-y-3 mt-3"></div>
+    </div>
+
+    <div id="panelSinav" class="mt-3 hidden">
+      <div class="kart p-3 grid md:grid-cols-3 gap-2">
+        <select id="snSinif" class="girdi" onchange="sinavDersDoldur();sinavCiz()">
+          <option value="5">5. Sınıf</option><option value="6">6. Sınıf</option>
+          <option value="7">7. Sınıf</option><option value="8">8. Sınıf</option>
+        </select>
+        <select id="snDers" class="girdi" onchange="sinavCiz()"></select>
+        <button class="btn btn-birincil justify-center" onclick="sinavKontrol()">Kontrol Et ve Puanla</button>
+      </div>
+      <div id="sinavSonuc" class="mt-3 hidden"></div>
+      <div id="sinavAlani" class="space-y-3 mt-3"></div>
+    </div>
+
+    <div id="panelPaylasim" class="mt-3 hidden">
+      <div class="kart p-3 grid md:grid-cols-4 gap-2">
+        <select id="pSinif" class="girdi" onchange="paylasimFiltre.sinif=this.value;paylasimCiz()">
+          <option value="">Sınıf (tümü)</option><option value="0">Seçmeli</option>
+          <option value="5">5. Sınıf</option><option value="6">6. Sınıf</option>
+          <option value="7">7. Sınıf</option><option value="8">8. Sınıf</option>
+        </select>
+        <select id="pDers" class="girdi" onchange="paylasimFiltre.ders=this.value;paylasimCiz()"></select>
+        <input id="pQ" class="girdi md:col-span-2" placeholder="Paylaşımlarda ara…" oninput="paylasimFiltre.q=this.value;paylasimCiz()" />
+      </div>
+      <div id="paylasimFormSar" class="kart mt-3 hidden">
+        <div class="kart-baslik">Yeni Paylaşım (Öğretmen / Yönetici)</div>
+        <form class="p-4 space-y-2" onsubmit="paylasimGonder(event)">
+          <div class="grid md:grid-cols-3 gap-2">
+            <div><label class="text-[12px] font-semibold">Sınıf *</label>
+              <select id="pFSinif" class="girdi"><option value="0">Seçmeli</option><option value="5">5. Sınıf</option><option value="6">6. Sınıf</option><option value="7">7. Sınıf</option><option value="8">8. Sınıf</option></select></div>
+            <div><label class="text-[12px] font-semibold">Ders *</label><select id="pFDers" class="girdi"></select></div>
+            <div><label class="text-[12px] font-semibold">Ünite / Konu</label><input id="pFUnite" class="girdi" placeholder="Örn. Kareköklü İfadeler" /></div>
+          </div>
+          <div><label class="text-[12px] font-semibold">Başlık *</label><input id="pFBaslik" class="girdi" placeholder="Ödev / çalışma başlığı" /></div>
+          <div><label class="text-[12px] font-semibold">İçerik *</label><textarea id="pFIcerik" class="girdi" rows="5" placeholder="Ödev yönergesi, sorular, açıklamalar…"></textarea></div>
+          <button class="btn btn-birincil">Paylaşımı Yayınla</button>
+        </form>
+      </div>
+      <div id="paylasimListe" class="space-y-3 mt-3"></div>
+    </div>
+  </section>
+</main>
+
+<div id="iskelet-alt"></div>
+<div id="iskelet-modal"></div>
+
+<script src="js/data.js?v=7"></script>
+<script src="js/odevler.js?v=8"></script>
+<script src="js/odev-5.js?v=8"></script>
+<script src="js/odev-6.js?v=8"></script>
+<script src="js/odev-7.js?v=8"></script>
+<script src="js/odev-8.js?v=8"></script>
+<script src="js/ikon.js?v=7"></script>
+<script src="js/api.js?v=6"></script>
+<script src="js/auth.js?v=6"></script>
+<script src="js/forum.js?v=6"></script>
+<script src="js/mesaj.js?v=6"></script>
+<script src="js/paylasim.js?v=8"></script>
+<script src="js/reader.js?v=5"></script>
+<script src="js/layout.js?v=9"></script>
+<script src="js/app.js?v=10"></script>
+</body>
+</html>

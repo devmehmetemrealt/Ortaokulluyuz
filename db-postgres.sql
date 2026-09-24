@@ -58,4 +58,12 @@ CREATE TABLE IF NOT EXISTS dogrulama (
   bitis TIMESTAMPTZ NOT NULL, olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_dogrulama_eposta ON dogrulama (eposta);
+CREATE TABLE IF NOT EXISTS paylasimlar (
+  id SERIAL PRIMARY KEY,
+  sinif SMALLINT NOT NULL, ders VARCHAR(32) NOT NULL, unite VARCHAR(120) NOT NULL DEFAULT '',
+  baslik VARCHAR(200) NOT NULL, icerik TEXT NOT NULL,
+  yazar_id INT NULL, yazar_ad VARCHAR(120) NOT NULL,
+  olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_paylasim_sinif_ders ON paylasimlar (sinif, ders);
 CREATE TABLE IF NOT EXISTS ayarlar (anahtar TEXT PRIMARY KEY, deger TEXT NOT NULL);

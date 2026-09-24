@@ -528,6 +528,42 @@ module.exports = async (req, res) => {
         return gonder(res, 200, { ok: true });
       }
 
+      case 'paylasimlar': {
+        const kosul = []; const prm = [];
+        if (g('sinif', '') !== '') { prm.push(Number(g('sinif'))); kosul.push('sinif = $' + prm.length); }
+        if (g('ders', '') !== '') { prm.push(String(g('ders'))); kosul.push('ders = $' + prm.length); }
+        if (g('q', '') !== '') { prm.push('%' + g('q') + '%'); prm.push('%' + g('q') + '%'); kosul.push('(baslik ILIKE $' + (prm.length - 1) + ' OR icerik ILIKE $' + prm.length + ')'); }
+        const where = kosul.length ? ('WHERE ' + kosul.join(' AND ')) : '';
+        const l = await client.query(
+          'SELECT p.*, u.rol AS yazar_rol FROM paylasimlar p LEFT JOIN uyeler u ON u.id = p.yazar_id ' + where + ' ORDER BY p.olusturma DESC LIMIT 100', prm);
+        return gonder(res, 200, { ok: true, paylasimlar: l.rows });
+      }
+
+      case 'paylasim-ekle': {
+        const k = await oturum(req);
+        if (!k || !['ogretmen', 'admin'].includes(k.rol)) return hata(res, 'Paylaşım yalnızca öğretmenler ve yöneticiler tarafından yapılır.', 403);
+        const sinif = Number(g('sinif', 0)); const ders = String(g('ders', '')); const unite = String(g('unite', ''));
+        const baslik = String(g('baslik', '')); const icerik = String(g('icerik', ''));
+        if (![0, 5, 6, 7, 8].includes(sinif)) return hata(res, 'Sınıf seçimi zorunlu.');
+        if (!ders) return hata(res, 'Ders seçimi zorunlu.');
+        if (baslik.trim().length < 8 || icerik.trim().length < 20) return hata(res, 'Başlık ve içerik daha detaylı olmalı.');
+        const ek = await client.query(
+          'INSERT INTO paylasimlar (sinif, ders, unite, baslik, icerik, yazar_id, yazar_ad) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id',
+          [sinif, ders, unite || '', baslik, icerik, k.id, k.ad]);
+        return gonder(res, 200, { ok: true, id: ek.rows[0].id });
+      }
+
+      case 'paylasim-sil': {
+        const k = await oturum(req);
+        if (!k) return hata(res, 'Bu işlem için giriş yapmalısınız.', 401);
+        const id = Number(g('id', 0));
+        const p = (await client.query('SELECT yazar_id FROM paylasimlar WHERE id = $1', [id])).rows[0];
+        if (!p) return hata(res, 'Paylaşım bulunamadı.', 404);
+        if (k.rol !== 'admin' && Number(p.yazar_id) !== Number(k.id)) return hata(res, 'Yetkisiz işlem.', 403);
+        await client.query('DELETE FROM paylasimlar WHERE id = $1', [id]);
+        return gonder(res, 200, { ok: true });
+      }
+
       default:
         return hata(res, 'Bilinmeyen işlem.', 404);
     }

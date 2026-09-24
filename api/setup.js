@@ -62,6 +62,14 @@ const DDL = [
     bitis TIMESTAMPTZ NOT NULL, olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`,
   `CREATE INDEX IF NOT EXISTS idx_dogrulama_eposta ON dogrulama (eposta)`,
+  `CREATE TABLE IF NOT EXISTS paylasimlar (
+    id SERIAL PRIMARY KEY,
+    sinif SMALLINT NOT NULL, ders VARCHAR(32) NOT NULL, unite VARCHAR(120) NOT NULL DEFAULT '',
+    baslik VARCHAR(200) NOT NULL, icerik TEXT NOT NULL,
+    yazar_id INT NULL, yazar_ad VARCHAR(120) NOT NULL,
+    olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_paylasim_sinif_ders ON paylasimlar (sinif, ders)`,
   `CREATE TABLE IF NOT EXISTS ayarlar (anahtar TEXT PRIMARY KEY, deger TEXT NOT NULL)`,
 ];
 
@@ -130,7 +138,7 @@ module.exports = async (req, res) => {
     const bayrak = await pool.query("SELECT deger FROM ayarlar WHERE anahtar = 'kurulum'");
     if (bayrak.rows.length) {
       await pool.end();
-      return res.end(sayfa('Site zaten kurulu.', 'ok'));
+      return res.end(sayfa('Site zaten kurulu. Eksik tablolar (varsa) oluşturuldu.', 'ok'));
     }
     const mevcut = await pool.query('SELECT id FROM uyeler WHERE eposta = $1', [adminEposta]);
     let adminId;

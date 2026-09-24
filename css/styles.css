@@ -123,7 +123,46 @@ table.tablo td{padding:8px;border-bottom:1px solid #eef2f7}
 .meb-yonlendirme{display:flex;align-items:center;justify-content:center;height:100%;padding:40px 20px;background:#eef1f6}
 .meb-yonlendirme-kutu{background:#fff;border:1px solid var(--cizgi);border-radius:12px;max-width:560px;padding:28px;text-align:center}
 #ozetModu{flex:1;display:flex;flex-direction:column;min-height:0}
-/* --- Modern auth + bildirimler --- */
+/* --- Ödevler --- */
+.odev-sekmeler{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.odev-sekme{border:1px solid var(--cizgi);background:#fff;border-radius:999px;padding:9px 20px;font-size:14px;font-weight:700;color:var(--gri-koyu);cursor:pointer;transition:all .15s ease}
+.odev-sekme:hover{border-color:var(--mavi);color:var(--mavi)}
+.odev-sekme.aktif{background:var(--lacivert);border-color:var(--lacivert);color:#fff;box-shadow:0 4px 12px rgba(11,42,91,.25)}
+.odev-sorular{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.odev-sorular li{border-bottom:1px dashed var(--cizgi);padding-bottom:10px}
+.odev-sorular li:last-child{border-bottom:none;padding-bottom:0}
+.cevap-gizli{display:none;margin-top:6px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:8px 12px;font-size:13px;color:#14532d}
+.cevap-gizli.goster{display:block;animation:acilir .2s ease}
+.secenekler{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.secenek{display:flex;align-items:center;gap:8px;text-align:left;background:#fff;border:1px solid var(--cizgi);border-radius:9px;padding:9px 11px;font-size:13.5px;cursor:pointer;transition:all .13s ease;color:#1e293b}
+.secenek:hover{border-color:var(--mavi);background:var(--mavi-acik)}
+.secenek-harf{width:24px;height:24px;flex:none;border-radius:50%;background:#eef2f7;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center}
+.secenek.secili{border-color:var(--mavi);background:var(--mavi-acik);box-shadow:0 0 0 2px rgba(27,79,156,.2)}
+.secenek.dogru{border-color:#16a34a;background:#dcfce7}
+.secenek.dogru .secenek-harf{background:#16a34a;color:#fff}
+.secenek.yanlis{border-color:#dc2626;background:#fee2e2}
+.secenek.yanlis .secenek-harf{background:#dc2626;color:#fff}
+.sinav-sonuc{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid var(--cizgi);border-left:5px solid var(--kirmizi);border-radius:10px;padding:14px 18px}
+.sinav-puan{font-size:34px;font-weight:800;color:var(--lacivert)}
+.etiket-meb{background:#e8eff9;border-color:#bfd0ea;color:#1b4f9c}
+.odev-promo{display:block;background:linear-gradient(120deg,#0B2A5B,#123a7d);border-radius:14px;border-top:4px solid var(--kirmizi);padding:20px 24px;text-decoration:none;transition:transform .15s ease,box-shadow .15s ease}
+.odev-promo:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(11,42,91,.25)}
+.odev-promo-baslik{display:block;color:#fff;font-weight:800;font-size:17px}
+.odev-promo-alt{display:block;color:#c6d4ec;font-size:13px;margin-top:4px}
+
+/* --- Sayfa giriş + kayarak belirme + yukarı düğmesi --- */
+body{animation:sayfaGiris .3s ease}
+@keyframes sayfaGiris{from{opacity:0}to{opacity:1}}
+.reveal{opacity:0;transform:translateY(18px);transition:opacity .55s ease,transform .55s ease}
+.reveal.gorunur{opacity:1;transform:none}
+.hero{position:relative;overflow:hidden}
+.hero::before{content:"";position:absolute;top:-60px;right:-60px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.14),transparent 70%);animation:suzulme 7s ease-in-out infinite}
+@keyframes suzulme{0%,100%{transform:translateY(0)}50%{transform:translateY(24px)}}
+.ana-nav{transition:box-shadow .2s ease}
+.ana-nav.golge{box-shadow:0 4px 16px rgba(11,42,91,.14)}
+#yukariBtn{position:fixed;right:16px;bottom:16px;z-index:80;width:44px;height:44px;border-radius:50%;border:none;background:var(--lacivert);color:#fff;cursor:pointer;box-shadow:0 6px 18px rgba(11,42,91,.35);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transform:translateY(10px);transition:all .25s ease}
+#yukariBtn.goster{opacity:1;pointer-events:auto;transform:none}
+#yukariBtn:hover{background:var(--kirmizi)}
 .auth-kart{background:#fff;border-radius:16px;width:100%;max-width:26rem;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3)}
 .auth-ust{background:linear-gradient(120deg,#071e44,#123a7d);color:#fff;padding:20px;display:flex;gap:12px;align-items:center}
 .auth-amblem{border-bottom-width:4px}

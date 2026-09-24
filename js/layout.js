@@ -41,6 +41,7 @@ const Layout = {
       <a data-nav="sinif-7" href="sinif-7.html">7. Sınıf</a>
       <a data-nav="sinif-8" href="sinif-8.html">8. Sınıf</a>
       <a data-nav="secmeli" href="secmeli.html">Seçmeli</a>
+      <a data-nav="odevler" href="odevler.html">Ödevler</a>
       <a data-nav="forum" href="forum.html">Forum</a>
       <a data-nav="mesajlar" href="mesajlar.html">Mesajlar <span id="mesajRozet" class="sayac hidden"></span></a>
       <a data-nav="yardim" href="yardim.html">Yardım</a>
@@ -57,6 +58,7 @@ const Layout = {
       <option value="sinif-7.html">7. Sınıf Kitapları</option>
       <option value="sinif-8.html">8. Sınıf Kitapları</option>
       <option value="secmeli.html">Seçmeli Ders Kitapları</option>
+      <option value="odevler.html">Hazır Ödevler ve Sınavlar</option>
       <option value="forum.html">Ödev Forumu</option>
       <option value="mesajlar.html">Mesajlar</option>
       <option value="profil.html">Profilim</option>
@@ -75,7 +77,7 @@ const Layout = {
     </div>
     <div>
       <div class="alt-baslik">Sayfalar</div>
-      <div class="alt-metin"><a href="kitaplar.html">Tüm Kitaplar</a> • <a href="forum.html">Ödev Forumu</a> • <a href="mesajlar.html">Mesajlar</a> • <a href="profil.html">Profilim</a> • <a href="yardim.html">Yardım</a></div>
+      <div class="alt-metin"><a href="kitaplar.html">Tüm Kitaplar</a> • <a href="odevler.html">Hazır Ödevler</a> • <a href="forum.html">Ödev Forumu</a> • <a href="mesajlar.html">Mesajlar</a> • <a href="profil.html">Profilim</a> • <a href="yardim.html">Yardım</a></div>
       <div class="alt-metin"><a href="sinif-5.html">5. Sınıf</a> • <a href="sinif-6.html">6. Sınıf</a> • <a href="sinif-7.html">7. Sınıf</a> • <a href="sinif-8.html">8. Sınıf</a> • <a href="secmeli.html">Seçmeli Dersler</a></div>
     </div>
     <div>
@@ -84,7 +86,7 @@ const Layout = {
       <div class="alt-metin alt-not">Resmî MEB yayını değildir. Kitap PDF'leri MEB sunucularından sunulur.</div>
     </div>
   </div>
-  <div class="alt-cizgi">© 2025-2026 Ortaokulluyuz Eğitim Platformu</div>
+  <div class="alt-cizgi">© 2026-2027 Ortaokulluyuz Eğitim Platformu</div>
 </footer>`;
   },
   modallar() {
@@ -223,6 +225,7 @@ const Layout = {
   </div>
 </div>
 <div id="toast" class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 bg-[#0f2f5b] text-white text-[13.5px] px-4 py-2.5 rounded-lg shadow-lg z-[120]"></div>
-<div id="bildirimAlani"></div>`;
+<div id="bildirimAlani"></div>
+<button id="yukariBtn" onclick="yukariCik()" title="Başa dön"><svg class="ikon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg></button>`;
   }
 };
