@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Ortaokulluyuz logosu">
+  <defs>
+    <clipPath id="oo-kes"><rect x="2" y="2" width="60" height="60" rx="13"/></clipPath>
+  </defs>
+  <g clip-path="url(#oo-kes)">
+    <rect x="2" y="2" width="60" height="60" fill="#0B2A5B"/>
+    <circle cx="51" cy="13" r="17" fill="#14387A"/>
+    <path d="M32 16c-5-3.6-11-5-17-5v34c6 0 12 1.4 17 5 5-3.6 11-5 17-5V11c-6 0-12 1.4-17 5z" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M32 16v34" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
+    <rect x="2" y="52" width="60" height="12" fill="#C8102E"/>
+  </g>
+</svg>
