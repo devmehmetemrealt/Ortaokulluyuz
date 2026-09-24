@@ -1,7 +1,7 @@
 ORTAOKULLUYUZ — VERCEL + NEON POSTGRES KURULUMU
 =============================================
 Eski Vista Panel hostingi çöktüğü için site Vercel'e taşındı.
-PHP/MySQL kalmadı: backend Node.js sunucusuz işlevler + Postgres.
+PHP/MySQL kalmadı: backend Node.js sunucusuz işlevlers + Postgres.
 
 ADIM 0 - GEREKEN HESAPLAR (ücretsiz)
   1. GitHub hesabı (kodları yüklemek için)
