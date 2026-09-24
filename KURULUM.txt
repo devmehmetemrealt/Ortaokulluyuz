@@ -32,7 +32,33 @@ ADIM 3 - VERCEL'E BAĞLAYIN
        BREVO_API_KEY      = Brevo > SMTP & API > API Keys
        BREVO_SENDER_EMAIL = Brevo'da onayladığınız gönderici adresi
        SENDER_NAME        = Ortaokulluyuz
+       GOOGLE_CLIENT_ID   = Google Cloud'dan alınan web istemci kimliği
+                            (boş bırakılırsa Google düğmesi görünmez)
+       SMS_MODU           = kapali  (NetGSM kullanacaksanız: netgsm)
+       NETGSM_USERCODE    = NetGSM kullanıcı adı (usercode)
+       NETGSM_PASSWORD    = NetGSM şifresi
+       NETGSM_HEADER      = NetGSM'de onaylı mesaj başlığı (örn. ORTAOKUL)
   4. Deploy'a basın. 1-2 dakikada siteniz yayında olur.
+
+ADIM 3B - GOOGLE İLE GİRİŞ (isteğe bağlı)
+  1. console.cloud.google.com > yeni proje > APIs & Services >
+     OAuth consent screen: harici (External), uygulama adı + e-posta.
+  2. Credentials > Create Credentials > OAuth client ID > tür: Web.
+     Authorized JavaScript origins: https://siteniz.vercel.app
+     (Yerel test için http://localhost:3000 de eklenebilir.)
+  3. Oluşan "xxx.apps.googleusercontent.com" kimliğini kopyalayıp
+     Vercel'de GOOGLE_CLIENT_ID olarak kaydedin, Redeploy yapın.
+  4. Sitede giriş penceresinde Google düğmesi belirir. Google ile
+     giriş yapanın e-postasına yine doğrulama kodu gider; kodu giren
+     hesaba bağlanır (yeni ise hesabı otomatik açılır).
+
+ADIM 3C - TELEFONLA KAYIT / SMS (isteğe bağlı)
+  1. netgsm.com.tr'den hat + onaylı mesaj başlığı (HEADER) alın.
+  2. Vercel'e SMS_MODU=netgsm + NETGSM_* değerlerini girip Redeploy yapın.
+  3. Kayıt ekranında "Telefon ile" sekmesi açılır; kod SMS ile gider.
+  NOT: NetGSM bilgileri olmadan sekme otomatik gizlenir; e-posta ile
+  kayıt her zaman çalışır. Her SMS ücrete tabidir, test için 1-2 adet
+  yeterlidir.
 
 ADIM 4 - KURULUM SİHİRBAZI
   Tarayıcıda:  siteniz.vercel.app/api/setup

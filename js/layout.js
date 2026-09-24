@@ -177,26 +177,41 @@ const Layout = {
         <button type="button" class="sifre-goz" onclick="sifreGoster('gSifre',this)" title="Göster/Gizle"><svg class="ikon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
       </div>
       <button class="btn btn-birincil w-full justify-center auth-btn">Giriş Yap</button>
+      <div id="googleBtnSar" class="hidden">
+        <div class="ayrac"><span>veya</span></div>
+        <div id="googleBtn"></div>
+        <p class="auth-not">Google ile girişte de e-postanıza doğrulama kodu gönderilir.</p>
+      </div>
       <button type="button" class="auth-vazgec" onclick="document.getElementById('authModal').classList.add('hidden')">Vazgeç</button>
     </form>
     <form id="kayitForm" class="auth-form hidden" onsubmit="kayitYap(event)">
       <label class="auth-etiket">Ad Soyad</label>
       <input id="kAd" required class="girdi auth-girdi" placeholder="Adınız Soyadınız" />
-      <label class="auth-etiket">E-posta adresiniz</label>
-      <input id="kEposta" type="email" required class="girdi auth-girdi" placeholder="ornek@eposta.com" />
+      <div class="kanal-sekmeler" id="kayitKanal">
+        <button type="button" class="kanal-sekme aktif" data-kanal="eposta" onclick="kayitKanalSec('eposta')">E-posta ile</button>
+        <button type="button" class="kanal-sekme" data-kanal="telefon" onclick="kayitKanalSec('telefon')">Telefon ile</button>
+      </div>
+      <div id="kEpostaSar">
+        <label class="auth-etiket">E-posta adresiniz</label>
+        <input id="kEposta" type="email" class="girdi auth-girdi" placeholder="ornek@eposta.com" />
+      </div>
+      <div id="kTelefonSar" class="hidden">
+        <label class="auth-etiket">Cep telefonunuz</label>
+        <div class="telefon-sar"><span class="telefon-on">+90</span><input id="kTelefon" type="tel" inputmode="tel" class="girdi auth-girdi" placeholder="5__ ___ __ __" /></div>
+      </div>
       <label class="auth-etiket">Şifre <span class="auth-ipucu">(en az 4 karakter)</span></label>
       <div class="sifre-sar">
         <input id="kSifre" type="password" required class="girdi auth-girdi" placeholder="Güçlü bir şifre seçin" />
         <button type="button" class="sifre-goz" onclick="sifreGoster('kSifre',this)" title="Göster/Gizle"><svg class="ikon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
       </div>
       <button class="btn btn-birincil w-full justify-center auth-btn">Kayıt Ol</button>
-      <p class="auth-not">E-postanıza <b>doğrulama kodu</b> gönderilecek. Hesabınız <b>öğrenci</b> olarak açılır; öğretmen ve veli yetkisi yönetici tarafından tanımlanır.</p>
+      <p class="auth-not">E-postanıza veya telefonunuza <b>doğrulama kodu</b> gönderilecek. Hesabınız <b>öğrenci</b> olarak açılır; öğretmen ve veli yetkisi yönetici tarafından tanımlanır.</p>
       <button type="button" class="auth-vazgec" onclick="document.getElementById('authModal').classList.add('hidden')">Vazgeç</button>
     </form>
     <form id="dogrulamaForm" class="auth-form hidden" onsubmit="dogrulaYap(event)">
       <div class="dogrulama-kutu"><svg class="ikon" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#1b4f9c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></div>
       <div class="auth-baslik text-center">E-postanızı doğrulayın</div>
-      <p class="auth-not text-center"><b id="dogrulamaEposta"></b> adresine gönderilen 6 haneli kodu yazın.</p>
+      <p class="auth-not text-center"><b id="dogrulamaKanalYazi">e-postanıza</b> (<b id="dogrulamaEposta"></b>) gönderilen 6 haneli kodu yazın.</p>
       <p id="dogrulamaUyari" class="dogrulama-uyari"></p>
       <input id="dogrulamaKod" class="girdi dogrulama-girdi" maxlength="6" inputmode="numeric" placeholder="••••••" autocomplete="one-time-code" />
       <button class="btn btn-birincil w-full justify-center auth-btn">Doğrula ve Giriş Yap</button>

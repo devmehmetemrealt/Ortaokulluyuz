@@ -131,17 +131,42 @@ const Auth = {
     }
     return YerelAuth.kayit(ad, eposta, sifre);
   },
-  async dogrula(eposta, kod) {
+  async dogrula(hedef, kod) {
     if (!this._uzak) return { ok: true };
-    const j = await API.sor("dogrula", { eposta, kod });
+    const j = await API.sor("dogrula", { hedef, kod });
     if (!j.ok) return { hata: j.hata || "Doğrulanamadı." };
     this._oturum = j.kullanici;
     return { ok: true, kullanici: j.kullanici };
   },
-  async kodTekrar(eposta) {
+  async kodTekrar(hedef) {
     if (!this._uzak) return { ok: true };
-    const j = await API.sor("kod-tekrar", { eposta });
+    const j = await API.sor("kod-tekrar", { hedef });
     return j.ok ? { ok: true } : { hata: j.hata || "Kod gönderilemedi." };
+  },
+  async telefonKayit(ad, telefon, sifre) {
+    if (!this._uzak) {
+      const r = YerelAuth.kayit(ad, telefon, sifre);
+      return r;
+    }
+    const j = await API.sor("telefon-kayit", { ad, telefon, sifre });
+    if (!j.ok) return { hata: j.hata || "Kayıt başarısız." };
+    return { ok: true, dogrulama_gerekli: true, hedef: j.hedef, kanal: "telefon", posta_hatasi: j.posta_hatasi || "" };
+  },
+  async googleGiris(idToken) {
+    const j = await API.sor("google-giris", { idToken });
+    if (!j.ok) return { hata: j.hata || "Google ile giriş başarısız." };
+    if (j.dogrulama_gerekli) return { ok: true, dogrulama_gerekli: true, eposta: j.eposta, kanal: "eposta", posta_hatasi: j.posta_hatasi || "" };
+    this._oturum = j.kullanici;
+    return { ok: true, kullanici: j.kullanici };
+  },
+  _yapilandirma: null,
+  async yapilandirma() {
+    if (!this._uzak) return { google: false, sms: false, eposta: true };
+    if (!this._yapilandirma) {
+      try { this._yapilandirma = await API.sor("yapilandirma"); }
+      catch (e) { this._yapilandirma = { google: false, sms: false, eposta: true }; }
+    }
+    return this._yapilandirma;
   },
   async uyeOnayla(kullaniciId) {
     if (this._uzak) {

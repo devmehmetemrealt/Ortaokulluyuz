@@ -14,7 +14,7 @@ function kitapListesiniCiz() {
   );
   const sayiEl = document.getElementById("kitapSayi");
   if (sayiEl) sayiEl.textContent = liste.length + " kitap listeleniyor";
-  alan.innerHTML = liste.map(k => {
+  alan.innerHTML = liste.map((k, bi) => {
     const fav = favs.includes(k.id);
     const sinifEtiket = k.sinif ? k.sinif + ". Sınıf" : "Ortaokul Seçmeli";
     let rozet, aciklama, dugmeler;
@@ -39,7 +39,7 @@ function kitapListesiniCiz() {
     const kapak = k.kapak
       ? `<img src="${k.kapak}" alt="${k.baslik}" loading="lazy" onerror="this.closest('.kapak-alani').classList.add('kapak-hatali');this.remove();" />`
       : `<div class="kapak-yer-tutucu" style="background:${k.kapakRenk}"><span>${k.baslik}</span></div>`;
-    return `<div class="kart kart-kitap golge-hafif overflow-hidden flex flex-col">
+    return `<div class="kart kart-kitap golge-hafif overflow-hidden flex flex-col" style="animation-delay:${Math.min(bi * 40, 400)}ms">
       <div class="kapak-alani">${kapak}
         <button class="kapak-fav" onclick="favoriDegist('${k.id}')" title="Favori">${ikonYildiz(fav)}</button>
         <span class="kapak-sinif">${sinifEtiket}</span>
@@ -104,8 +104,8 @@ async function forumCiz() {
   }
   const sayiEl = document.getElementById("forumSayi");
   if (sayiEl) sayiEl.textContent = s.length + " soru";
-  listeEl.innerHTML = s.map(x => `
-    <div class="kart p-4">
+  listeEl.innerHTML = s.map((x, bi) => `
+    <div class="kart forum-giris p-4" style="animation-delay:${Math.min(bi * 40, 320)}ms">
       <div class="flex flex-wrap items-center gap-2 text-[12px]">
         <span class="etiket">${x.sinif}. Sınıf</span>
         <span class="etiket">${dersAdi(x.ders, x.sinif)}</span>
@@ -434,7 +434,7 @@ async function girisYap(e) {
   const ep = document.getElementById("gEposta").value.trim();
   const r = await Auth.giris(ep, document.getElementById("gSifre").value);
   if (r.hata) {
-    if (String(r.hata).startsWith("E-POSTA-DOGRULAMA-GEREK")) { dogrulamaEkraniGoster(ep, ""); return; }
+    if (String(r.hata).startsWith("E-POSTA-DOGRULAMA-GEREK")) { dogrulamaEkraniGoster(ep, "eposta", ""); return; }
     return toast(r.hata);
   }
   document.getElementById("authModal").classList.add("hidden");
@@ -443,28 +443,99 @@ async function girisYap(e) {
 async function kayitYap(e) {
   e.preventDefault();
   const ad = document.getElementById("kAd").value.trim();
-  const ep = document.getElementById("kEposta").value.trim();
   const sf = document.getElementById("kSifre").value;
   if (ad.length < 3 || sf.length < 4) return toast("Ad ve şifreyi kontrol edin (şifre en az 4 karakter).");
+  const kanal = kayitKanali();
   let r;
-  try { r = await Auth.kayit(ad, ep, sf); }
+  try {
+    if (kanal === "telefon") {
+      const tel = document.getElementById("kTelefon").value.trim();
+      if (!tel) return toast("Telefon numaranızı yazın.");
+      r = await Auth.telefonKayit(ad, tel, sf);
+    } else {
+      const ep = document.getElementById("kEposta").value.trim();
+      if (!ep) return toast("E-posta adresinizi yazın.");
+      r = await Auth.kayit(ad, ep, sf);
+    }
+  }
   catch (e2) { return toast("Kayıt sırasında bağlantı hatası."); }
   if (r.hata) return toast(r.hata);
   if (r.dogrulama_gerekli) {
-    dogrulamaEkraniGoster(r.eposta || ep, r.posta_hatasi || "");
+    dogrulamaEkraniGoster(r.hedef || r.eposta, kanal, r.posta_hatasi || "");
     return;
   }
   document.getElementById("authModal").classList.add("hidden");
   ustBarGuncelle(); profilCiz(); adminCiz(); toast("Kaydınız oluşturuldu. Hesabınız öğrenci olarak açıldı.");
 }
-let _dogrulamaEposta = "", _kodSayac = null;
-function dogrulamaEkraniGoster(eposta, postaHatali) {
-  _dogrulamaEposta = eposta;
+function kayitKanali() {
+  const a = document.querySelector("#kayitKanal .kanal-sekme.aktif");
+  return a ? a.dataset.kanal : "eposta";
+}
+/* Google ile giriş (GIS) + giriş yapılandırması */
+function girisYapilandir() {
+  Auth.yapilandirma().then(y => {
+    const ks = document.getElementById("kayitKanal");
+    if (ks) {
+      const telBtn = ks.querySelector('[data-kanal="telefon"]');
+      if (telBtn) telBtn.style.display = y.sms ? "" : "none";
+      if (!y.sms && kayitKanali() === "telefon") kayitKanalSec("eposta");
+    }
+    if (y.google && y.googleClientId) googleHazirla(y.googleClientId);
+  }).catch(() => {});
+}
+function googleHazirla(clientId) {
+  const sar = document.getElementById("googleBtnSar");
+  if (!sar) return;
+  sar.classList.remove("hidden");
+  const yukle = () => {
+    if (!window.google || !google.accounts || !google.accounts.id) { setTimeout(yukle, 400); return; }
+    try {
+      google.accounts.id.initialize({ client_id: clientId, callback: googleCevap, ux_mode: "popup" });
+      const alan = document.getElementById("googleBtn");
+      if (alan && !alan.dataset.kurulu) {
+        alan.dataset.kurulu = "1";
+        google.accounts.id.renderButton(alan, { theme: "outline", size: "large", width: 320, text: "signin_with", locale: "tr" });
+      }
+    } catch (e) {}
+  };
+  if (!document.getElementById("gisBetik")) {
+    const s = document.createElement("script");
+    s.id = "gisBetik"; s.src = "https://accounts.google.com/gsi/client"; s.async = true; s.defer = true;
+    s.onload = yukle;
+    document.head.appendChild(s);
+  } else yukle();
+}
+async function googleCevap(cevap) {
+  if (!cevap || !cevap.credential) { toast("Google yanıtı alınamadı."); return; }
+  toast("Google doğrulanıyor…");
+  let r;
+  try { r = await Auth.googleGiris(cevap.credential); }
+  catch (e) { toast("Bağlantı hatası, tekrar deneyin."); return; }
+  if (r.hata) return toast(r.hata);
+  if (r.dogrulama_gerekli) {
+    dogrulamaEkraniGoster(r.eposta, "eposta", r.posta_hatasi || "");
+    return;
+  }
+  document.getElementById("authModal").classList.add("hidden");
+  ustBarGuncelle(); profilCiz(); adminCiz(); forumCiz(); mesajlariCiz();
+  toast("Hoş geldiniz, " + r.kullanici.ad + ".");
+}
+function kayitKanalSec(kanal) {
+  document.querySelectorAll("#kayitKanal .kanal-sekme").forEach(b => b.classList.toggle("aktif", b.dataset.kanal === kanal));
+  const tel = kanal === "telefon";
+  document.getElementById("kEpostaSar").classList.toggle("hidden", tel);
+  document.getElementById("kTelefonSar").classList.toggle("hidden", !tel);
+}
+let _dogrulamaHedef = "", _dogrulamaKanal = "eposta", _kodSayac = null;
+function dogrulamaEkraniGoster(hedef, kanal, postaHatali) {
+  _dogrulamaHedef = hedef;
+  _dogrulamaKanal = kanal === "telefon" ? "telefon" : "eposta";
   document.getElementById("girisForm").classList.add("hidden");
   document.getElementById("kayitForm").classList.add("hidden");
   const d = document.getElementById("dogrulamaForm");
   d.classList.remove("hidden");
-  document.getElementById("dogrulamaEposta").textContent = eposta;
+  document.getElementById("dogrulamaEposta").textContent = hedef;
+  document.getElementById("dogrulamaKanalYazi").textContent = _dogrulamaKanal === "telefon" ? "telefonunuza" : "e-postanıza";
   document.getElementById("dogrulamaUyari").textContent = postaHatali
     ? "Uyarı: e-posta gönderilemedi (" + postaHatali + "). Kod ulaşmazsa yöneticiden manuel onay isteyin."
     : "6 haneli kod e-postanıza gönderildi. 15 dakika geçerlidir.";
@@ -487,7 +558,7 @@ async function dogrulaYap(e) {
   e.preventDefault();
   const kod = document.getElementById("dogrulamaKod").value.trim();
   if (kod.length < 4) return toast("Kodu eksiksiz yazın.");
-  const r = await Auth.dogrula(_dogrulamaEposta, kod);
+  const r = await Auth.dogrula(_dogrulamaHedef, kod);
   if (r.hata) return toast(r.hata);
   document.getElementById("authModal").classList.add("hidden");
   document.getElementById("dogrulamaForm").classList.add("hidden");
@@ -495,7 +566,7 @@ async function dogrulaYap(e) {
   toast("E-postanız doğrulandı, hoş geldiniz!");
 }
 async function kodTekrarGonder() {
-  const r = await Auth.kodTekrar(_dogrulamaEposta);
+  const r = await Auth.kodTekrar(_dogrulamaHedef);
   if (r.hata) return toast(r.hata);
   toast("Yeni kod gönderildi.");
   kodSayacBaslat();
@@ -584,11 +655,11 @@ async function adminCiz() {
     </div>
     <div class="kart-baslik">Kullanıcılar ve Rol Atama</div>
     <div class="p-3 overflow-auto"><table class="tablo">
-      <tr><th>Ad Soyad</th><th>E-posta</th><th>Kayıt</th><th>Rol</th><th>E-posta Onayı</th><th>İşlem</th></tr>
+      <tr><th>Ad Soyad</th><th>E-posta / Telefon</th><th>Kayıt</th><th>Rol</th><th>E-posta Onayı</th><th>İşlem</th></tr>
       ${uyeler.map(u => {
         const anaYonetici = (u.id === "u-admin" || u.id === 1);
         return `<tr>
-        <td>${u.ad}</td><td>${u.eposta}</td><td>${tarihKisa(u.olusturma || u.tarih)}</td>
+        <td>${u.ad}</td><td>${kac(u.eposta || u.telefon || "—")}</td><td>${tarihKisa(u.olusturma || u.tarih)}</td>
         <td><select class="girdi" style="max-width:150px" onchange="rolGuncelle('${u.id}',this.value)" ${anaYonetici ? "disabled" : ""}>
           ${["ogrenci", "ogretmen", "veli", "admin"].map(r => `<option value="${r}" ${u.rol === r ? "selected" : ""}>${rolAdi(r)}</option>`).join("")}
         </select></td>
@@ -978,8 +1049,8 @@ async function sonSorularCiz() {
   let l = [];
   try { l = (await Forum.liste({})).slice(0, 3); }
   catch (e) { alan.innerHTML = `<div class="kart p-4 text-[13px] text-slate-400">Sorular yüklenemedi.</div>`; return; }
-  alan.innerHTML = l.map(x => `
-    <div class="kart p-4">
+  alan.innerHTML = l.map((x, bi) => `
+    <div class="kart forum-giris p-4" style="animation-delay:${Math.min(bi * 40, 240)}ms">
       <div class="flex flex-wrap items-center gap-2 text-[12px]">
         <span class="etiket">${x.sinif}. Sınıf</span>
         <span class="etiket">${dersAdi(x.ders, x.sinif)}</span>
@@ -1008,25 +1079,31 @@ function forumSayfasiKur() {
 
 // --- ilk yükleme ---
 document.addEventListener("DOMContentLoaded", async () => {
-  Layout.kur();
-  const sayfa = document.body.dataset.sayfa || "index";
-  const uzak = await Auth.baslat();
-  const rozet = document.getElementById("modRozeti");
-  if (rozet) rozet.textContent = uzak ? "Ortak veritabanına bağlı" : "Yerel mod (sunucu yok)";
-  ustBarGuncelle();
-  kitapListesiniCiz();
-  resmiKaynaklariCiz();
-  if (sayfa === "index") { istatistikleriCiz(); sonSorularCiz(); }
-  if (sayfa === "kitaplar") kitaplarSayfasiKur();
-  if (sayfa.startsWith("sinif") || sayfa === "secmeli") sinifSayfasiKur();
-  if (sayfa === "forum") forumSayfasiKur();
-  if (sayfa === "odevler") odevSayfasiKur();
-  await forumCiz();
-  await profilCiz();
-  await adminCiz();
-  await mesajlariCiz();
-  SohbetCanli.baslat();
-  animasyonKur();
+  document.documentElement.classList.add("js-anim");
+  try {
+    Layout.kur();
+    animasyonKur();
+    const sayfa = document.body.dataset.sayfa || "index";
+    const uzak = await Auth.baslat();
+    const rozet = document.getElementById("modRozeti");
+    if (rozet) rozet.textContent = uzak ? "Ortak veritabanına bağlı" : "Yerel mod (sunucu yok)";
+    ustBarGuncelle();
+    girisYapilandir();
+    kitapListesiniCiz();
+    resmiKaynaklariCiz();
+    if (sayfa === "index") { istatistikleriCiz(); sonSorularCiz(); }
+    if (sayfa === "kitaplar") kitaplarSayfasiKur();
+    if (sayfa.startsWith("sinif") || sayfa === "secmeli") sinifSayfasiKur();
+    if (sayfa === "forum") forumSayfasiKur();
+    if (sayfa === "odevler") odevSayfasiKur();
+    await forumCiz();
+    await profilCiz();
+    await adminCiz();
+    await mesajlariCiz();
+    SohbetCanli.baslat();
+  } finally {
+    setTimeout(() => document.querySelectorAll(".reveal").forEach(e => e.classList.add("gorunur")), 1800);
+  }
   setInterval(() => {
     const a = document.getElementById("sayfaNo"), b = document.getElementById("sayfaNoAlt");
     if (a && b) b.textContent = "Sayfa " + a.textContent;

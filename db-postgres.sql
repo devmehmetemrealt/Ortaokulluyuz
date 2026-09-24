@@ -3,10 +3,11 @@
 -- Yöneticiyi setup sihirbazıyla oluşturun (parola bcrypt ile saklanır).
 CREATE TABLE IF NOT EXISTS uyeler (
   id SERIAL PRIMARY KEY,
-  ad VARCHAR(120) NOT NULL, eposta VARCHAR(160) NOT NULL UNIQUE,
+  ad VARCHAR(120) NOT NULL, eposta VARCHAR(160) UNIQUE,
   parola VARCHAR(255) NOT NULL,
   rol VARCHAR(16) NOT NULL DEFAULT 'ogrenci' CHECK (rol IN ('ogrenci','ogretmen','veli','admin')),
   eposta_onay BOOLEAN NOT NULL DEFAULT TRUE,
+  telefon VARCHAR(20) NULL UNIQUE,
   olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE TABLE IF NOT EXISTS sorular (
