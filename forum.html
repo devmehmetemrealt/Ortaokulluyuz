@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ödev Forumu — Ortaokulluyuz</title>
+<meta name="description" content="5-8. sınıf ödev soruları: sınıf, ders ve üniteye göre sorun, açıklamalı yanıtlar alın." />
+<link rel="icon" type="image/svg+xml" href="img/logo.svg?v=7" />
+<link rel="stylesheet" href="css/styles.css?v=7" />
+</head>
+<body data-sayfa="forum">
+<div id="iskelet-ust"></div>
+
+<main class="sutun-dar px-4 py-5 space-y-6">
+  <div class="kirinti"><a href="index.html">Anasayfa</a> / Ödev Forumu</div>
+  <section class="grid lg:grid-cols-3 gap-4">
+    <div class="lg:col-span-2 space-y-3">
+      <div class="bolum-baslik"><span>Ödev ve Soru-Cevap Forumu</span><span id="forumSayi" class="etiket"></span></div>
+      <div class="kart p-3 grid md:grid-cols-4 gap-2">
+        <select id="ffSinif" class="girdi" onchange="forumFiltre.sinif=this.value;forumCiz()"></select>
+        <select id="ffDers" class="girdi" onchange="forumFiltre.ders=this.value;forumCiz()"></select>
+        <select id="ffDurum" class="girdi" onchange="forumFiltre.durum=this.value;forumCiz()">
+          <option value="">Durum (tümü)</option><option value="cozuldu">Çözüldü</option><option value="bekliyor">Yanıt bekliyor</option>
+        </select>
+        <input class="girdi" placeholder="Forumda ara…" oninput="forumFiltre.q=this.value;forumCiz()" />
+      </div>
+      <div id="forumListe" class="space-y-3"></div>
+    </div>
+    <div>
+      <div class="kart">
+        <div class="kart-baslik">Yeni Soru Sor</div>
+        <form class="p-4 space-y-2" onsubmit="soruGonder(event)">
+          <div class="grid grid-cols-2 gap-2">
+            <div><label class="text-[12px] font-semibold">Sınıf *</label><select id="sSinif" class="girdi" onchange="dersUniteDoldur()"></select></div>
+            <div><label class="text-[12px] font-semibold">Ders *</label><select id="sDers" class="girdi" onchange="dersUniteDoldur()"></select></div>
+          </div>
+          <div><label class="text-[12px] font-semibold">Ünite / Konu *</label><select id="sUnite" class="girdi"></select></div>
+          <div><label class="text-[12px] font-semibold">Başlık *</label><input id="sBaslik" class="girdi" placeholder="Örn. Ondalık gösterimlerde sıralama nasıl yapılır?" /></div>
+          <div><label class="text-[12px] font-semibold">Açıklama *</label><textarea id="sGovde" class="girdi" rows="4" placeholder="Nerede takıldığınızı, denediklerinizi yazın…"></textarea></div>
+          <div><label class="text-[12px] font-semibold">Soru görseli (isteğe bağlı)</label><input id="sGorsel" type="file" accept="image/*" class="girdi" /></div>
+          <button class="btn btn-birincil w-full justify-center">Soruyu Yayınla</button>
+          <p class="text-[11.5px] text-slate-400">Kural: Sınıf, ders ve ünite seçimi zorunludur. Doğru yanıt, soru sahibi veya öğretmen tarafından işaretlenir.</p>
+        </form>
+      </div>
+      <div class="duyuru p-4 mt-4">
+        <div class="font-bold text-[13.5px] text-amber-900">Forum kuralları</div>
+        <ul class="text-[12.5px] text-amber-900/80 list-disc ml-5 mt-1 space-y-1">
+          <li>Ödevin tamamını değil, takıldığınız adımı sorun.</li>
+          <li>Görsel yüklüyorsanız yazıların okunaklı olmasına dikkat edin.</li>
+          <li>Çözümde işlem adımlarını yazın; yalnızca sonuç paylaşmayın.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="iskelet-alt"></div>
+<div id="iskelet-modal"></div>
+
+<script src="js/data.js?v=7"></script>
+<script src="js/ikon.js?v=7"></script>
+<script src="js/api.js?v=6"></script>
+<script src="js/auth.js?v=6"></script>
+<script src="js/forum.js?v=6"></script>
+<script src="js/mesaj.js?v=6"></script>
+<script src="js/reader.js?v=5"></script>
+<script src="js/layout.js?v=8"></script>
+<script src="js/app.js?v=9"></script>
+</body>
+</html>

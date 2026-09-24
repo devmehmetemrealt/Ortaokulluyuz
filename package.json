@@ -1,0 +1,14 @@
+{
+  "name": "ortaokulluyuz",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Ortaokulluyuz — 5-8. Sınıf Dijital Ders Kitapları ve Eğitim Platformu (Vercel + Postgres)",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1"
+  }
+}

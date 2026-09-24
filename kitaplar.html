@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tüm Kitaplar — Ortaokulluyuz</title>
+<meta name="description" content="5-8. sınıf tüm ders kitapları: MEB resmî PDF'leri, konu özetleri ve indirme." />
+<link rel="icon" type="image/svg+xml" href="img/logo.svg?v=7" />
+<link rel="stylesheet" href="css/styles.css?v=7" />
+</head>
+<body data-sayfa="kitaplar">
+<div id="iskelet-ust"></div>
+
+<main class="sutun-dar px-4 py-5 space-y-6">
+  <div class="kirinti"><a href="index.html">Anasayfa</a> / Tüm Kitaplar</div>
+  <section>
+    <div class="bolum-baslik"><span>Tüm Kitaplar</span><span id="kitapSayi" class="etiket"></span></div>
+    <p class="bolum-aciklama">“MEB Resmî PDF” rozetli kitaplar Bakanlığın yayımladığı orijinal kitaplardır. “Yakında” rozetli kitaplar MEB portalında henüz yayımlanmamıştır.</p>
+    <div class="kart p-3 grid md:grid-cols-4 gap-2">
+      <select id="fSinif" class="girdi" onchange="filtre.sinif=this.value;kitapListesiniCiz()"></select>
+      <select id="fDers" class="girdi" onchange="filtre.ders=this.value;kitapListesiniCiz()"></select>
+      <select id="fKaynak" class="girdi" onchange="filtre.kaynak=this.value;kitapListesiniCiz()">
+        <option value="">Durum (tümü)</option>
+        <option value="meb">MEB Resmî PDF'liler</option>
+        <option value="katalog">MEB Sayfasında</option>
+        <option value="yakinda">Yakında eklenecekler</option>
+      </select>
+      <input id="fQ" class="girdi" placeholder="Kitap, ünite veya konu arayın…" oninput="filtre.q=this.value;kitapListesiniCiz()" />
+    </div>
+    <div id="unitePanel" class="hidden mb-3 mt-3"></div>
+    <div id="kitaplar" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-3"></div>
+  </section>
+</main>
+
+<div id="iskelet-alt"></div>
+<div id="iskelet-modal"></div>
+
+<script src="js/data.js?v=7"></script>
+<script src="js/ikon.js?v=7"></script>
+<script src="js/api.js?v=6"></script>
+<script src="js/auth.js?v=6"></script>
+<script src="js/forum.js?v=6"></script>
+<script src="js/mesaj.js?v=6"></script>
+<script src="js/reader.js?v=5"></script>
+<script src="js/layout.js?v=8"></script>
+<script src="js/app.js?v=9"></script>
+</body>
+</html>

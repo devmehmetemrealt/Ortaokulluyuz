@@ -1,0 +1,56 @@
+ORTAOKULLUYUZ — VERCEL + NEON POSTGRES KURULUMU
+=============================================
+Eski Vista Panel hostingi çöktüğü için site Vercel'e taşındı.
+PHP/MySQL kalmadı: backend Node.js sunucusuz işlevler + Postgres.
+
+ADIM 0 - GEREKEN HESAPLAR (ücretsiz)
+  1. GitHub hesabı (kodları yüklemek için)
+  2. Vercel hesabı (vercel.com, GitHub ile giriş)
+  3. Neon hesabı (neon.tech, ücretsiz Postgres)
+  4. Brevo hesabı (brevo.com, günlük 300 e-posta bedava)
+
+ADIM 1 - KODLARI GITHUB'A YÜKLEYİN
+  1. GitHub'da yeni, ÖZEL (private) bir repo açın.
+  2. Bu klasörün İÇİNDEKİLERİNİ (tüm html, css/, js/, img/, api/,
+     package.json, db-postgres.sql) repoya yükleyin.
+  3. node_modules YÜKLEMEYİN (Vercel kendisi kurar).
+
+ADIM 2 - NEON'DA VERİTABANI AÇIN
+  1. neon.tech > New Project (bölge: EU / Frankfurt önerilir).
+  2. Database adı varsayılan (neondb) kalabilir.
+  3. Connection string'i kopyalayın (pooled olanı tercih edin):
+     postgresql://kullanici:sifre@ep-xxx.eu-central-1.aws.neon.tech/neondb?sslmode=require
+
+ADIM 3 - VERCEL'E BAĞLAYIN
+  1. vercel.com > Add New > Project > GitHub reponuzu seçin > Import.
+  2. Framework: "Other" (varsayılan), Root: ./ , Build: boş bırakın.
+  3. Environment Variables bölümüne şunları ekleyin (Production):
+       DATABASE_URL       = Neon connection string (ADIM 2)
+       JWT_SECRET         = uzun rastgele metin (örn. 40+ karakter)
+       SETUP_KEY          = kurulum anahtarı (uzun rastgele metin)
+       EMAIL_MODE         = brevo
+       BREVO_API_KEY      = Brevo > SMTP & API > API Keys
+       BREVO_SENDER_EMAIL = Brevo'da onayladığınız gönderici adresi
+       SENDER_NAME        = Ortaokulluyuz
+  4. Deploy'a basın. 1-2 dakikada siteniz yayında olur.
+
+ADIM 4 - KURULUM SİHİRBAZI
+  Tarayıcıda:  siteniz.vercel.app/api/setup
+  - SETUP_KEY + yönetici adı/e-posta/şifreyi girin, Kurulumu Başlat.
+  - Tablolar kurulur, yönetici oluşur, örnek forum taşınır.
+  - "Kurulum tamamlandı" sonrası bu adres bir daha çalışmaz.
+
+ADIM 5 - KONTROL
+  - Ana sayfanın üst şeridinde "Ortak veritabanına bağlı" yazmalı.
+  - Yönetici girişi + Yönetim Paneli > Test E-postası ile maili ölçün.
+  - Özel alan adınız varsa: Vercel > Project > Settings > Domains.
+
+ÖNEMLİ FARKLAR (eski sürüme göre)
+  - Soru görselleri artık dosyaya değil, veritabanına (base64) kaydedilir;
+    uploads/ klasörü kaldırıldı. Boyut sınırı 2 MB.
+  - Parolalar bcrypt, oturumlar JWT çerezi ile tutulur.
+  - E-posta yalnızca Brevo HTTPS API ile gider (SMTP modu yok; Vercel'den
+    mail portları kapalıdır). Hotmail şifresine gerek kalmadı.
+  - Eski MySQL verileri çöken hostingde kaldı; site sıfırdan başlar.
+    Üyeler yeniden kayıt olur, roller Yönetim Paneli'nden atanır.
+  - Sunucuya ulaşılamazsa site otomatik "Yerel mod"a düşer (eski davranış).
