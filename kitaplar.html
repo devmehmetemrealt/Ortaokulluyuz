@@ -6,7 +6,7 @@
 <title>Tüm Kitaplar — Ortaokulluyuz</title>
 <meta name="description" content="5-8. sınıf tüm ders kitapları: MEB resmî PDF'leri, konu özetleri ve indirme." />
 <link rel="icon" type="image/svg+xml" href="img/logo.svg?v=7" />
-<link rel="stylesheet" href="css/styles.css?v=9" />
+<link rel="stylesheet" href="css/styles.css?v=10" />
 </head>
 <body data-sayfa="kitaplar">
 <div id="iskelet-ust"></div>
@@ -17,8 +17,8 @@
     <div class="bolum-baslik"><span>Tüm Kitaplar</span><span id="kitapSayi" class="etiket"></span></div>
     <p class="bolum-aciklama">“MEB Resmî PDF” rozetli kitaplar Bakanlığın yayımladığı orijinal kitaplardır. “Yakında” rozetli kitaplar MEB portalında henüz yayımlanmamıştır.</p>
     <div class="kart p-3 grid md:grid-cols-4 gap-2">
-      <select id="fSinif" class="girdi" onchange="filtre.sinif=this.value;kitapListesiniCiz()"></select>
-      <select id="fDers" class="girdi" onchange="filtre.ders=this.value;kitapListesiniCiz()"></select>
+      <select id="fSinif" class="girdi" onchange="filtre.sinif=this.value; if (this.value) Tercih.sinifGor(this.value); kitapListesiniCiz()"></select>
+      <select id="fDers" class="girdi" onchange="filtre.ders=this.value; if (this.value) Tercih.dersGor(document.body.dataset.sinif || filtre.sinif, this.value); kitapListesiniCiz()"></select>
       <select id="fKaynak" class="girdi" onchange="filtre.kaynak=this.value;kitapListesiniCiz()">
         <option value="">Durum (tümü)</option>
         <option value="meb">MEB Resmî PDF'liler</option>
@@ -28,6 +28,7 @@
       <input id="fQ" class="girdi" placeholder="Kitap, ünite veya konu arayın…" oninput="filtre.q=this.value;kitapListesiniCiz()" />
     </div>
     <div id="unitePanel" class="hidden mb-3 mt-3"></div>
+    <div class="reklam-alani" data-reklam="banner"></div>
     <div id="kitaplar" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-3"></div>
   </section>
 </main>
@@ -40,9 +41,11 @@
 <script src="js/api.js?v=6"></script>
 <script src="js/auth.js?v=7"></script>
 <script src="js/forum.js?v=6"></script>
-<script src="js/mesaj.js?v=6"></script>
-<script src="js/reader.js?v=5"></script>
-<script src="js/layout.js?v=10"></script>
-<script src="js/app.js?v=11"></script>
+<script src="js/mesaj.js?v=7"></script>
+<script src="js/tercih.js?v=1"></script>
+<script src="js/sesli.js?v=1"></script>
+<script src="js/reader.js?v=6"></script>
+<script src="js/layout.js?v=11"></script>
+<script src="js/reklam.js?v=1"></script><script src="js/app.js?v=12"></script>
 </body>
 </html>

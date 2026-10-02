@@ -72,6 +72,22 @@ const DDL = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_paylasim_sinif_ders ON paylasimlar (sinif, ders)`,
   `CREATE TABLE IF NOT EXISTS ayarlar (anahtar TEXT PRIMARY KEY, deger TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS kullanici_tercih (
+    kullanici_id INT NOT NULL, sinif SMALLINT NOT NULL, ders VARCHAR(32) NOT NULL DEFAULT '', kitap_id VARCHAR(32) NOT NULL DEFAULT '',
+    goruntuleme INT NOT NULL DEFAULT 0, acma INT NOT NULL DEFAULT 0, favori INT NOT NULL DEFAULT 0, indirme INT NOT NULL DEFAULT 0, son_etki TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (kullanici_id, sinif, ders, kitap_id)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_kullanici_tercih_user ON kullanici_tercih (kullanici_id, son_etki DESC)`,
+  `CREATE TABLE IF NOT EXISTS sesli_arama (
+    id VARCHAR(64) PRIMARY KEY, arayan_id INT NOT NULL, aranan_id INT NOT NULL, durum VARCHAR(16) NOT NULL DEFAULT 'caliyor',
+    teklif JSONB NULL, yanit JSONB NULL, olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW(), guncelleme TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_sesli_arama_aranan ON sesli_arama (aranan_id, durum, guncelleme DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_sesli_arama_arayan ON sesli_arama (arayan_id, durum, guncelleme DESC)`,
+  `CREATE TABLE IF NOT EXISTS sesli_sinyal (
+    id BIGSERIAL PRIMARY KEY, arama_id VARCHAR(64) NOT NULL REFERENCES sesli_arama(id) ON DELETE CASCADE, gonderen_id INT NOT NULL, sinyal JSONB NOT NULL, olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_sesli_sinyal_arama ON sesli_sinyal (arama_id, id)`,
 ];
 
 function govdeOku(req) {

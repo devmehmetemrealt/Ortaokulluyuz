@@ -52,13 +52,81 @@ ADIM 3B - GOOGLE İLE GİRİŞ (isteğe bağlı)
      giriş yapanın e-postasına yine doğrulama kodu gider; kodu giren
      hesaba bağlanır (yeni ise hesabı otomatik açılır).
 
-ADIM 3C - TELEFONLA KAYIT / SMS (isteğe bağlı)
-  1. netgsm.com.tr'den hat + onaylı mesaj başlığı (HEADER) alın.
-  2. Vercel'e SMS_MODU=netgsm + NETGSM_* değerlerini girip Redeploy yapın.
-  3. Kayıt ekranında "Telefon ile" sekmesi açılır; kod SMS ile gider.
-  NOT: NetGSM bilgileri olmadan sekme otomatik gizlenir; e-posta ile
-  kayıt her zaman çalışır. Her SMS ücrete tabidir, test için 1-2 adet
-  yeterlidir.
+ADIM 3C - TELEFONLA KAYIT / SMS (isteğe bağlı, ÜCRETLİ)
+  Varsayılan kapalıdır (SMS_MODU tanımsız) ve kayıt ekranında telefon
+  sekmesi görünmez; hiçbir ücret oluşmaz. Açmak isterseniz NetGSM'den
+  hat + onaylı başlık alıp SMS_MODU=netgsm ve NETGSM_* değerlerini girin.
+
+EK A - KURUMSAL E-POSTA (info@alanadiniz)
+  NOT: x.dpdns.org gibi baskasina ait alan adinin alt adresinde DNS
+  oynayabilmek YETMEZ. Mail icin su kayitlar gerekir: alici tarafta MX,
+  gonderici tarafta SPF/DKIM TXT. DDNS saglayicilarinda bunlar ya kapali
+  ya da eksik olur; olsa bile Brevo/Google/Cloudflare "zone sahibi
+  degilsiniz" diye reddeder, spam filtreleri DDNS alan adlarini zaten
+  guvenilmez sayar. Ayrica AdSense ve okul guveni icin de gercek alan
+  adi sarttir. Yani cozum yine kendi alan adinizdir (asagidaki adimlar).
+  Tek sart kendi alan adinizdir. UCRETSIZ SECENEKLERIN GERCEGI:
+  - Freenom (.tk/.ml/.ga): OLDU, calismiyor. Artik bedava domain dagitan
+    duzgun kayit sirketi yok.
+  - eu.org gibi gonullu altyapilar: onay haftalar surer, guvenilirligi
+    dusuktur; AdSense ve kurumsal mail yine kabul etmez. Tavsiye edilmez.
+  - EN YAKIN COZUM: .xyz / .top / .site gibi uzantilarda ilk yil
+    kampanyalari (Porkbun, Namecheap, Cloudflare'da ~1-2 dolar, yani bir
+    ekmek parasi). Bu GERCEK alan adidir: AdSense, mail, SSL hepsi olur.
+    Yenilemesi yillik ~10 dolardir.
+  - Ogrenciyseniz: GitHub Student Pack ile .me uzantisi 1 yil bedava.
+  (yillik ~10-13 dolar; Natro/Isimtescil/Turhost
+  veya Cloudflare/Porkbun'dan alinir; DNS'i Cloudflare'e baglayin).
+  Sonrasi tamamen UCRETSIZDIR:
+
+  1) MAIL ALMA — Cloudflare Email Routing (bedava):
+     Cloudflare panel > alan adiniz > Email > Email Routing > Enable.
+     Catch-all kuraliyla info@alanadiniz gelenleri kisisel Gmail'inize
+     yonlendirin. MX kayitlarini otomatik yazar. Test icin kendinize
+     mail atin, Gmail'e dustugunu gorun.
+
+  2) MAIL GONDERME — Brevo (zaten kullaniyorsunuz, bedava 300/gun):
+     Brevo > Senders & IP > Domains > Add a domain > alan adinizi yazin.
+     Verdigi SPF/DKIM TXT kayitlarini Cloudflare DNS'e ekleyip Verify
+     edin. Sonra Vercel'de BREVO_SENDER_EMAIL = info@alanadiniz yapip
+     Redeploy edin. Artik dogrulama kodlari kurumsal adresten gider ve
+     spam'a dusme orani da duser.
+
+  3) GMAIL'DEN KURUMSAL ADRESLE YAZMA (bedava):
+     Gmail > Ayarlar > Hesaplar > "Postalari su adresten gonder" >
+     yeni adres ekleyin. SMTP sunucusu: smtp-relay.brevo.com:587,
+     kullanici adi: Brevo giris e-postaniz, sifre: Brevo > SMTP & API >
+     SMTP anahtari. Artik Gmail arayuzunden info@alanadiniz olarak
+     yazip cevaplayabilirsiniz; ayri posta kutusu parasi odemezsiniz.
+
+  4) SITEYE ISLEME:
+     - gizlilik.html'deki info@ortaokulluyuz.com adresini gerceginizle
+       degistirin.
+     - Vercel > Project > Settings > Domains > alan adinizi ekleyin,
+       gosterdigi DNS kaydini Cloudflare'e girin. SSL otomatik gelir;
+       bu, AdSense onayi ve okul guveni icin de sarttir.
+
+  Ucretli alternatif (sart degil): Google Workspace / Microsoft 365
+  (~7 dolar/kullanici/ay) gercek posta kutusu verir; yukaridaki
+  ucretsiz duzen cogunlukla yeterlidir.
+
+EK B - REKLAMLA GELİR (AdSense)
+  Pakette reklam altyapısı HAZIR ama KAPALI gelir (js/reklam.js).
+  Açmadan önce bilmeniz gerekenler:
+  - Onay şart: AdSense; özgün içerik, Gizlilik Politikası (sitede
+    gizlilik.html hazır), iletişim bilgisi ve düzenli trafik ister.
+    Başvuru öncesi info@... adresini gerçek adresinizle değiştirin.
+  - Kazanç beklentisi: Türkiye eğitim trafiğinde 1000 gösterim genelde
+    0,5-3 dolar bandındadır. Anlamlı gelir için ayda on binlerce
+    sayfa gösterimi gerekir; ilk aylarda sembolik olur.
+  - Çocuk kitle: 10-14 yaş ziyaretçi ağırlıklıdır. Agresif reklam
+    (açılır pencere, tam ekran) hem yasak sınırındadır hem velileri
+    kaçırır. Sitedeki 2-3 sakin alan yeterlidir, fazlasını eklemeyin.
+  Açmak için:
+  1. google.com/adsense > başvurun; onaylanınca Publisher ID
+     (ca-pub-...) ve 2 reklam birimi Slot ID'si alın.
+  2. js/reklam.js içindeki acik/client/slot satırlarını doldurun.
+  3. Yeniden deploy edin. Reklamlar belirlenen sakin alanlarda çıkar.
 
 ADIM 4 - KURULUM SİHİRBAZI
   Tarayıcıda:  siteniz.vercel.app/api/setup

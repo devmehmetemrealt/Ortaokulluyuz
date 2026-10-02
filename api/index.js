@@ -500,6 +500,94 @@ module.exports = async (req, res) => {
         return gonder(res, 200, { ok: true });
       }
 
+      case 'tercih-etki': {
+        const k = await oturum(req);
+        if (!k) return hata(res, 'Bu işlem için giriş yapmalısınız.', 401);
+        const sinif = Number(g('sinif', 0)); const ders = String(g('ders', '')).slice(0, 32); const kitapId = String(g('kitap_id', '')).slice(0, 32); const olay = String(g('olay', 'goruntuleme'));
+        if (![5,6,7,8].includes(sinif)) return hata(res, 'Geçersiz sınıf.');
+        if (!['goruntuleme','acma','favori','indirme'].includes(olay)) return hata(res, 'Geçersiz etkileşim.');
+        await client.query(`INSERT INTO kullanici_tercih (kullanici_id, sinif, ders, kitap_id, ${olay}) VALUES ($1,$2,$3,$4,1)
+          ON CONFLICT (kullanici_id, sinif, ders, kitap_id) DO UPDATE SET ${olay} = kullanici_tercih.${olay} + 1, son_etki = NOW()`, [k.id, sinif, ders, kitapId]);
+        return gonder(res, 200, { ok: true });
+      }
+      case 'tercih-ozet': {
+        const k = await oturum(req);
+        if (!k) return hata(res, 'Bu işlem için giriş yapmalısınız.', 401);
+        const l = await client.query('SELECT sinif, ders, kitap_id, goruntuleme, acma, favori, indirme, son_etki FROM kullanici_tercih WHERE kullanici_id = $1 ORDER BY son_etki DESC LIMIT 500', [k.id]);
+        const kayitlar = l.rows.map(r => ({ ...r, puan: Number(r.goruntuleme||0) + Number(r.acma||0)*3 + Number(r.favori||0)*6 + Number(r.indirme||0)*2 }));
+        return gonder(res, 200, { ok: true, kayitlar });
+      }
+
+      case 'sesli-arama-baslat': {
+        const k = await oturum(req);
+        if (!k) return hata(res, 'Bu işlem için giriş yapmalısınız.', 401);
+        const karsi = Number(g('karsi_id', 0));
+        if (!karsi || karsi === Number(k.id)) return hata(res, 'Geçersiz kullanıcı.');
+        const u = (await client.query('SELECT id, ad FROM uyeler WHERE id = $1', [karsi])).rows[0];
+        if (!u) return hata(res, 'Kullanıcı bulunamadı.', 404);
+        const aktif = (await client.query("SELECT id FROM sesli_arama WHERE (arayan_id=$1 OR aranan_id=$1) AND durum IN ('caliyor','baglaniyor','bagli') AND guncelleme > NOW() - INTERVAL '2 minutes' LIMIT 1", [k.id])).rows[0];
+        if (aktif) return hata(res, 'Zaten aktif bir sesli görüşmeniz var.');
+        const id = crypto.randomUUID();
+        await client.query('INSERT INTO sesli_arama (id, arayan_id, aranan_id, durum) VALUES ($1,$2,$3,\'caliyor\')', [id, k.id, karsi]);
+        return gonder(res, 200, { ok: true, arama_id: id, karsi_ad: u.ad });
+      }
+      case 'sesli-gelen-arama': {
+        await client.query("DELETE FROM sesli_arama WHERE guncelleme < NOW() - INTERVAL '1 day'").catch(() => {});
+        const k = await oturum(req);
+        if (!k) return hata(res, 'Bu işlem için giriş yapmalısınız.', 401);
+        const l = await client.query("SELECT a.*, u.ad AS arayan_ad FROM sesli_arama a LEFT JOIN uyeler u ON u.id=a.arayan_id WHERE a.aranan_id=$1 AND a.durum='caliyor' AND a.guncelleme > NOW() - INTERVAL '2 minutes' ORDER BY a.guncelleme DESC LIMIT 1", [k.id]);
+        return gonder(res, 200, { ok: true, arama: l.rows[0] || null });
+      }
+      case 'sesli-arama-teklif': {
+        const k = await oturum(req); if (!k) return hata(res, 'Giriş yapmalısınız.', 401);
+        const id = String(g('arama_id','')); const teklif = g('teklif', null);
+        const a = (await client.query('SELECT * FROM sesli_arama WHERE id=$1 AND arayan_id=$2', [id, k.id])).rows[0];
+        if (!a) return hata(res, 'Arama bulunamadı.', 404);
+        await client.query("UPDATE sesli_arama SET teklif=$1, guncelleme=NOW() WHERE id=$2", [JSON.stringify(teklif), id]);
+        return gonder(res, 200, { ok: true });
+      }
+      case 'sesli-arama-yanit': {
+        const k = await oturum(req); if (!k) return hata(res, 'Giriş yapmalısınız.', 401);
+        const id = String(g('arama_id','')); const yanit = g('yanit', null);
+        const a = (await client.query('SELECT * FROM sesli_arama WHERE id=$1 AND aranan_id=$2', [id, k.id])).rows[0];
+        if (!a) return hata(res, 'Arama bulunamadı.', 404);
+        await client.query("UPDATE sesli_arama SET yanit=$1, durum='baglaniyor', guncelleme=NOW() WHERE id=$2", [JSON.stringify(yanit), id]);
+        return gonder(res, 200, { ok: true });
+      }
+      case 'sesli-arama-durum-guncelle': {
+        const k = await oturum(req); if (!k) return hata(res, 'Giriş yapmalısınız.', 401);
+        const id = String(g('arama_id','')); const durum = String(g('durum',''));
+        if (!['baglaniyor','bagli'].includes(durum)) return hata(res, 'Geçersiz durum.');
+        const a = (await client.query('SELECT id FROM sesli_arama WHERE id=$1 AND (arayan_id=$2 OR aranan_id=$2)', [id, k.id])).rows[0];
+        if (!a) return hata(res, 'Arama bulunamadı.', 404);
+        await client.query('UPDATE sesli_arama SET durum=$1, guncelleme=NOW() WHERE id=$2', [durum, id]);
+        return gonder(res, 200, { ok: true });
+      }
+      case 'sesli-arama-sinyal': {
+        const k = await oturum(req); if (!k) return hata(res, 'Giriş yapmalısınız.', 401);
+        const id = String(g('arama_id','')); const sinyal = g('sinyal', null);
+        const a = (await client.query('SELECT id FROM sesli_arama WHERE id=$1 AND (arayan_id=$2 OR aranan_id=$2)', [id, k.id])).rows[0];
+        if (!a || !sinyal) return hata(res, 'Geçersiz sinyal.');
+        await client.query('INSERT INTO sesli_sinyal (arama_id, gonderen_id, sinyal) VALUES ($1,$2,$3)', [id, k.id, JSON.stringify(sinyal)]);
+        return gonder(res, 200, { ok: true });
+      }
+      case 'sesli-arama-kapat': {
+        const k = await oturum(req); if (!k) return hata(res, 'Giriş yapmalısınız.', 401);
+        const id = String(g('arama_id',''));
+        const a = (await client.query('SELECT id FROM sesli_arama WHERE id=$1 AND (arayan_id=$2 OR aranan_id=$2)', [id, k.id])).rows[0];
+        if (!a) return hata(res, 'Arama bulunamadı.', 404);
+        await client.query("UPDATE sesli_arama SET durum='kapali', guncelleme=NOW() WHERE id=$1", [id]);
+        return gonder(res, 200, { ok: true });
+      }
+      case 'sesli-arama-durum': {
+        const k = await oturum(req); if (!k) return hata(res, 'Giriş yapmalısınız.', 401);
+        const id = String(g('arama_id','')); const sonra = Number(g('sonra', 0));
+        const a = (await client.query('SELECT id, arayan_id, aranan_id, durum, teklif, yanit, guncelleme FROM sesli_arama WHERE id=$1 AND (arayan_id=$2 OR aranan_id=$2)', [id,k.id])).rows[0];
+        if (!a) return hata(res, 'Arama bulunamadı.', 404);
+        const l = await client.query('SELECT id, sinyal FROM sesli_sinyal WHERE arama_id=$1 AND gonderen_id <> $2 AND id > $3 ORDER BY id ASC LIMIT 50', [id,k.id,sonra]);
+        return gonder(res, 200, { ok: true, arama: a, sinyaller: l.rows });
+      }
+
       case 'kisiler': {
         const k = await oturum(req);
         if (!k) return hata(res, 'Bu işlem için giriş yapmalısınız.', 401);
@@ -512,7 +600,7 @@ module.exports = async (req, res) => {
         if (!k) return hata(res, 'Bu işlem için giriş yapmalısınız.', 401);
         const l = await client.query(
           'SELECT m.*, g.ad AS g_ad, a.ad AS a_ad FROM mesajlar m LEFT JOIN uyeler g ON g.id = m.gonderen_id LEFT JOIN uyeler a ON a.id = m.alici_id WHERE m.gonderen_id = $1 OR m.alici_id = $1 ORDER BY m.olusturma DESC LIMIT 500',
-          [k.id, k.id]);
+          [k.id]);
         const sohbet = {};
         l.rows.forEach((m) => {
           const karsi = Number(m.gonderen_id) === Number(k.id) ? Number(m.alici_id) : Number(m.gonderen_id);
@@ -551,8 +639,8 @@ module.exports = async (req, res) => {
         if (metin.trim().length < 1 || metin.length > 1000) return hata(res, 'Mesaj 1-1000 karakter olmalı.');
         const v = await client.query('SELECT id FROM uyeler WHERE id = $1', [alici]);
         if (!v.rows.length) return hata(res, 'Kullanıcı bulunamadı.', 404);
-        const ek = await client.query('INSERT INTO mesajlar (gonderen_id, alici_id, metin) VALUES ($1,$2,$3) RETURNING id', [k.id, alici, metin]);
-        return gonder(res, 200, { ok: true, id: ek.rows[0].id });
+        const ek = await client.query('INSERT INTO mesajlar (gonderen_id, alici_id, metin) VALUES ($1,$2,$3) RETURNING id, gonderen_id, alici_id, metin, okundu, olusturma', [k.id, alici, metin]);
+        return gonder(res, 200, { ok: true, id: ek.rows[0].id, mesaj: ek.rows[0] });
       }
 
       case 'mesaj-sil': {

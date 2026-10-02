@@ -83,7 +83,7 @@ const Layout = {
     <div>
       <div class="alt-baslik">Resmî Bağlantılar</div>
       <div class="alt-metin"><a href="https://tymm.meb.gov.tr/ders-kitaplari/temel-egitim" target="_blank" rel="noopener">MEB Ders Kitapları</a> • <a href="https://ogmmateryal.eba.gov.tr" target="_blank" rel="noopener">OGM Materyal</a> • <a href="https://mebi.eba.gov.tr" target="_blank" rel="noopener">MEBİ</a></div>
-      <div class="alt-metin alt-not">Resmî MEB yayını değildir. Kitap PDF'leri MEB sunucularından sunulur.</div>
+      <div class="alt-metin alt-not">Resmî MEB yayını değildir. Kitap PDF'leri MEB sunucularından sunulur. <a href="gizlilik.html">Gizlilik Politikası</a></div>
     </div>
   </div>
   <div class="alt-cizgi">© 2026-2027 Ortaokulluyuz Eğitim Platformu</div>
@@ -241,6 +241,7 @@ const Layout = {
 </div>
 <div id="toast" class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 bg-[#0f2f5b] text-white text-[13.5px] px-4 py-2.5 rounded-lg shadow-lg z-[120]"></div>
 <div id="bildirimAlani"></div>
+<div id="sesliAramaPanel" class="hidden"></div>
 <button id="yukariBtn" onclick="yukariCik()" title="Başa dön"><svg class="ikon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg></button>`;
   }
 };

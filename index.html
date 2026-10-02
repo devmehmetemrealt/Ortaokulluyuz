@@ -6,23 +6,23 @@
 <title>Ortaokulluyuz — 5-8. Sınıf Dijital Ders Kitapları ve Eğitim Platformu</title>
 <meta name="description" content="5, 6, 7 ve 8. sınıf Türkçe, Matematik, Fen Bilimleri, Sosyal Bilgiler, İngilizce ve Din Kültürü ders kitapları, MEB resmî PDF bağlantıları, Z-Kitap okuyucu ve ödev forumu." />
 <link rel="icon" type="image/svg+xml" href="img/logo.svg?v=7" />
-<link rel="stylesheet" href="css/styles.css?v=9" />
+<link rel="stylesheet" href="css/styles.css?v=10" />
 </head>
 <body data-sayfa="index">
 <div id="iskelet-ust"></div>
 
 <main class="sutun-dar px-4 py-5 space-y-6">
-  <section class="hero">
+  <section class="hero hero-yeni">
     <div class="hero-ic">
       <div class="flex-1">
-        <div class="hero-kicker">2026-2027 EĞİTİM ÖĞRETİM YILI • TÜRKİYE YÜZYILI MAARİF MODELİ</div>
-        <h1>Gerçek MEB ders kitapları ve ödev desteği tek panelde</h1>
-        <p>MEB'in yayımladığı orijinal ders kitaplarını okuyun, PDF olarak indirin, konu özetlerinde not alın. Takıldığınız soruları forumda öğretmenlere sorun.</p>
+        <div class="hero-kicker">ORTAOKULLUYUZ • 5–8. SINIF</div>
+        <h1>Ders kitabın, ödev soruların ve çalışma araçların tek yerde.</h1>
+        <p>MEB kitaplarına hızlı eriş, dijital özetlerde çalış, forumda takıldığın noktayı sor. Gezdiğin sınıf ve derslere göre kitap önerileri burada kendiliğinden şekillenir.</p>
         <div class="hero-siniflar">
-          <a href="sinif-5.html" class="hero-sinif">5<span>. Sınıf</span></a>
-          <a href="sinif-6.html" class="hero-sinif">6<span>. Sınıf</span></a>
-          <a href="sinif-7.html" class="hero-sinif">7<span>. Sınıf</span></a>
-          <a href="sinif-8.html" class="hero-sinif">8<span>. Sınıf</span></a>
+          <a href="sinif-5.html" class="hero-sinif" onclick="Tercih.sinifGor(5)">5<span>. Sınıf</span></a>
+          <a href="sinif-6.html" class="hero-sinif" onclick="Tercih.sinifGor(6)">6<span>. Sınıf</span></a>
+          <a href="sinif-7.html" class="hero-sinif" onclick="Tercih.sinifGor(7)">7<span>. Sınıf</span></a>
+          <a href="sinif-8.html" class="hero-sinif" onclick="Tercih.sinifGor(8)">8<span>. Sınıf</span></a>
           <a href="kitaplar.html" class="hero-sinif hero-tumu">Tümü<span>Tüm Kitaplar</span></a>
         </div>
         <div class="mt-2">
@@ -38,7 +38,14 @@
     </div>
   </section>
 
+  <section class="onerilen-bolum">
+    <div class="bolum-baslik"><span>Senin için</span><span id="onerilenBaslik" class="etiket"></span><a href="kitaplar.html" class="etiket ml-auto">Tüm kitaplar →</a></div>
+    <p class="bolum-aciklama">Gezdiğin sınıf, ders ve kitaplara göre güncellenen öneriler. Başlangıçta genel seçimler gösterilir.</p>
+    <div id="onerilenKitaplar" class="onerilen-grid"></div>
+  </section>
+
   <section>
+    <div class="reklam-alani" data-reklam="banner"></div>
     <div class="bolum-baslik"><span>Nasıl Çalışır?</span></div>
     <div class="grid md:grid-cols-3 gap-4">
       <div class="kart p-4 adim-kart"><div class="adim-no">1</div><div class="font-bold text-[14px] text-slate-900">Sınıfını seç</div><div class="text-[13px] text-slate-600 mt-1">5, 6, 7, 8. sınıf veya tüm kitaplar kategorisinden dersini bul.</div></div>
@@ -73,9 +80,11 @@
 <script src="js/api.js?v=6"></script>
 <script src="js/auth.js?v=7"></script>
 <script src="js/forum.js?v=6"></script>
-<script src="js/mesaj.js?v=6"></script>
-<script src="js/reader.js?v=5"></script>
-<script src="js/layout.js?v=10"></script>
-<script src="js/app.js?v=11"></script>
+<script src="js/mesaj.js?v=7"></script>
+<script src="js/tercih.js?v=1"></script>
+<script src="js/sesli.js?v=1"></script>
+<script src="js/reader.js?v=6"></script>
+<script src="js/layout.js?v=11"></script>
+<script src="js/reklam.js?v=1"></script><script src="js/app.js?v=12"></script>
 </body>
 </html>

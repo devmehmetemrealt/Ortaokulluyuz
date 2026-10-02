@@ -7,6 +7,7 @@ const Reader = {
   ac(kitapId) {
     this.kitap = KITAPLAR.find(k => k.id === kitapId);
     if (!this.kitap) return;
+    if (typeof Tercih !== 'undefined') Tercih.etkiKitap(this.kitap, 'acma');
     this.sayfalar = kitapSayfalari(this.kitap);
     this.indeks = 0; this.zoom = 1;
     this.mod = this.kitap.pdfUrl ? "meb" : "ozet";

@@ -11,6 +11,7 @@ const YerelMesaj = {
 
 const Mesaj = {
   _acikSohbet: null,
+  _gonderiliyor: false,
   async sohbetler() {
     const ben = Auth.mevcut();
     if (!ben) return { sohbetler: [], okunmamis_toplam: 0 };

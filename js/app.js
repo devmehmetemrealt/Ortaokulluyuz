@@ -2,6 +2,20 @@
 let filtre = { sinif: "", ders: "", q: "", kaynak: "" };
 let forumFiltre = { sinif: "", ders: "", q: "", durum: "" };
 
+function kitapKartMini(k) {
+  const kapak = k.kapak ? `<img src="${k.kapak}" alt="${k.baslik}" loading="lazy" />` : `<div class="onerilen-kapak-yok" style="background:${k.kapakRenk}">${k.baslik}</div>`;
+  return `<article class="onerilen-kart"><a href="${k.pdfUrl || k.mebSayfa || '#'}" ${k.pdfUrl ? 'target="_blank" rel="noopener"' : ''} onclick="Tercih.etkiKitap(KITAPLAR.find(x=>x.id==='${k.id}'),'acma')"><div class="onerilen-kapak">${kapak}<span>${k.sinif}. Sınıf</span></div><div class="onerilen-govde"><div class="onerilen-ders">${kac(dersAdi(k.ders, k.sinif))}</div><h3>${kac(k.baslik)}</h3><div class="onerilen-link">${k.pdfUrl ? 'Kitabı aç' : 'Kitap sayfası'} →</div></div></a></article>`;
+}
+async function onerilenlerCiz() {
+  const alan = document.getElementById('onerilenKitaplar');
+  if (!alan) return;
+  const secilen = Tercih.kitaplar().slice(0, 6);
+  const baslik = document.getElementById('onerilenBaslik');
+  if (baslik) baslik.textContent = Tercih.etiket();
+  alan.innerHTML = secilen.map(kitapKartMini).join('') || '<div class="text-[13px] text-slate-500">Henüz yeterli hareket yok. Birkaç sınıf veya kitap gezdiğinizde öneriler burada kişiselleşecek.</div>';
+}
+function kitapEtkisi(id, olay) { const k = KITAPLAR.find(x => x.id === id); if (k) Tercih.etkiKitap(k, olay); }
+
 function kitapListesiniCiz() {
   const alan = document.getElementById("kitaplar");
   if (!alan) return;
@@ -27,7 +41,7 @@ function kitapListesiniCiz() {
       rozet = `<span class="rozet rozet-meb">MEB Resmî PDF</span>`;
       aciklama = `MEB'in yayımladığı gerçek ders kitabı. Okuyucuda doğrudan açılır, <b>PDF İndir</b> ile cihazınıza kaydedilir.`;
       dugmeler = `<button class="btn btn-birincil btn-kucuk" onclick="Reader.ac('${k.id}')">${ikon("kitap", 14)} Oku</button>
-        <a class="btn btn-ikincil btn-kucuk" target="_blank" rel="noopener" href="${k.pdfUrl}">${ikon("indir", 14)} PDF İndir</a>
+        <a class="btn btn-ikincil btn-kucuk" target="_blank" rel="noopener" href="${k.pdfUrl}" onclick="kitapEtkisi('${k.id}','indirme')">${ikon("indir", 14)} PDF İndir</a>
         ${k.uniteler.length > 1 ? `<button class="btn btn-ikincil btn-kucuk" onclick="uniteListesi('${k.id}')">${ikon("liste", 14)} İçindekiler</button>` : ""}`;
     } else {
       rozet = `<span class="rozet">MEB Sayfasında</span>`;
@@ -75,8 +89,8 @@ function uniteListesi(kitapId) {
 function favoriDegist(id) {
   if (!Auth.mevcut()) { authModal("giris"); toast("Favorilere eklemek için giriş yapın."); return; }
   const f = Auth.favoriler();
-  if (f.includes(id)) Auth.favoriCikar(id); else Auth.favoriEkle(id);
-  kitapListesiniCiz(); profilCiz();
+  if (f.includes(id)) { Auth.favoriCikar(id); kitapEtkisi(id, 'favori'); } else { Auth.favoriEkle(id); kitapEtkisi(id, 'favori'); }
+  kitapListesiniCiz(); profilCiz(); onerilenlerCiz();
 }
 
 function resmiKaynaklariCiz() {
@@ -220,7 +234,7 @@ async function mesajlariCiz() {
   let kisiler = [];
   try { kisiler = await Mesaj.kisiler(); } catch (e) {}
   alan.innerHTML = `
-    <div class="mesaj-duyuru">Özel mesajlar, güvenlik denetimi kapsamında yöneticiler tarafından görüntülenebilir. Kişisel bilgilerinizi (telefon, adres) paylaşmayın.</div>
+    <div class="mesaj-duyuru">Özel mesajlar güvenlik denetimi kapsamında yöneticiler tarafından incelenebilir. Kişisel bilgi paylaşmayın. Sesli arama için sohbeti açın.</div>
     <div class="mesaj-grid">
       <div>
         <div class="mesaj-yan-baslik">Sohbetler</div>
@@ -256,8 +270,10 @@ async function mesajlariCiz() {
     } catch (e) {}
   }
   mesajRozetGuncelle(veri.okunmamis_toplam);
+  SohbetCanli.bilinen = {};
+  veri.sohbetler.forEach(s => { SohbetCanli.bilinen[s.karsi_id] = Number(s.okunmamis || 0); });
 }
-async function sohbetAc(karsiId) {
+async function sohbetAc(karsiId, sessizListe = false) {
   if (!karsiId) return;
   Mesaj._acikSohbet = karsiId;
   SohbetCanli.acikSonId = null;
@@ -269,14 +285,14 @@ async function sohbetAc(karsiId) {
   sohbetAcIcerik(v);
   const p = document.getElementById("mesajPencere");
   if (p) p.scrollTop = p.scrollHeight;
-  mesajlariRozetYenile();
+  if (!sessizListe) mesajlariRozetYenile();
 }
 function sohbetAcIcerik(v) {
   const ben = Auth.mevcut();
   const alan = document.getElementById("mesajPencere");
   if (!alan) return;
   alan.innerHTML =
-    `<div class="mesaj-karsi">${kac(v.karsi.ad)}</div>` +
+    `<div class="mesaj-karsi mesaj-karsi-ust"><div><b>${kac(v.karsi.ad)}</b><span>Özel sohbet</span></div><div class="mesaj-karsi-aksiyon"><button class="arac-btn" title="Sesli ara" data-sesli-id="${kac(v.karsi.id)}" data-sesli-ad="${kac(v.karsi.ad)}" onclick="Sesli.araFromButton(this)">🎙️ Sesli ara</button></div></div>` +
     (v.mesajlar.map(m => `
       <div class="balon-satir ${m.giden ? "giden" : "gelen"}" data-mid="${m.id}">
         <div class="balon">${kac(m.metin)}
@@ -289,12 +305,34 @@ function sohbetAcIcerik(v) {
 }
 async function mesajGonderForm(e) {
   e.preventDefault();
-  const kutu = document.getElementById("mesajMetin");
-  try { await Mesaj.gonder(Mesaj._acikSohbet, kutu.value); }
-  catch (e2) { toast(e2.message); return; }
-  kutu.value = "";
-  sohbetAc(Mesaj._acikSohbet); mesajlariCiz();
+  if (Mesaj._gonderiliyor || !Mesaj._acikSohbet) return;
+  const form = document.getElementById('mesajForm');
+  const kutu = document.getElementById('mesajMetin');
+  const btn = form ? form.querySelector('button[type="submit"], button:not([type])') : null;
+  const metin = kutu ? kutu.value.trim() : '';
+  if (!metin) return;
+  Mesaj._gonderiliyor = true;
+  if (btn) { btn.disabled = true; btn.textContent = 'Gönderiliyor…'; }
+  try {
+    const sonuc = await Mesaj.gonder(Mesaj._acikSohbet, metin);
+    kutu.value = '';
+    await sohbetAc(Mesaj._acikSohbet, true);
+    try { const liste = await Mesaj.sohbetler(); SohbetCanli._listeImza = ''; SohbetCanli.listeTazele(liste.sohbetler); mesajRozetGuncelle(liste.okunmamis_toplam); } catch (e3) {}
+  } catch (e2) { toast(e2.message); }
+  finally { Mesaj._gonderiliyor = false; if (btn) { btn.disabled = false; btn.textContent = 'Gönder'; } }
 }
+function mesajListesineEkle(m) {
+  const alan = document.getElementById('mesajPencere');
+  if (!alan || !m) return;
+  const ben = Auth.mevcut();
+  const satir = document.createElement('div'); satir.className = 'balon-satir giden'; satir.dataset.mid = m.id;
+  const balon = document.createElement('div'); balon.className = 'balon';
+  balon.append(document.createTextNode(m.metin + ' '));
+  const z = document.createElement('span'); z.className = 'balon-zaman'; z.textContent = tarihSaat(m.tarih || m.olusturma || new Date().toISOString()); balon.appendChild(z);
+  if (ben) { const del = document.createElement('button'); del.className='balon-sil'; del.title='Sil'; del.innerHTML=ikon('kapat',10); del.onclick=()=>mesajSilYap(m.id); balon.appendChild(del); }
+  satir.appendChild(balon); alan.appendChild(satir); alan.scrollTop=alan.scrollHeight;
+}
+
 async function mesajSilYap(id) {
   if (!confirm("Bu mesaj silinsin mi?")) return;
   try { await Mesaj.sil(id); }
@@ -438,7 +476,8 @@ async function girisYap(e) {
     return toast(r.hata);
   }
   document.getElementById("authModal").classList.add("hidden");
-  ustBarGuncelle(); profilCiz(); adminCiz(); forumCiz(); mesajlariCiz(); toast("Hoş geldiniz, " + r.kullanici.ad + ".");
+  await Tercih.baslat();
+  ustBarGuncelle(); profilCiz(); adminCiz(); forumCiz(); mesajlariCiz(); onerilenlerCiz(); toast("Hoş geldiniz, " + r.kullanici.ad + ".");
 }
 async function kayitYap(e) {
   e.preventDefault();
@@ -465,7 +504,8 @@ async function kayitYap(e) {
     return;
   }
   document.getElementById("authModal").classList.add("hidden");
-  ustBarGuncelle(); profilCiz(); adminCiz(); toast("Kaydınız oluşturuldu. Hesabınız öğrenci olarak açıldı.");
+  await Tercih.baslat();
+  ustBarGuncelle(); profilCiz(); adminCiz(); onerilenlerCiz(); toast("Kaydınız oluşturuldu. Hesabınız öğrenci olarak açıldı.");
 }
 function kayitKanali() {
   const a = document.querySelector("#kayitKanal .kanal-sekme.aktif");
@@ -562,7 +602,8 @@ async function dogrulaYap(e) {
   if (r.hata) return toast(r.hata);
   document.getElementById("authModal").classList.add("hidden");
   document.getElementById("dogrulamaForm").classList.add("hidden");
-  ustBarGuncelle(); profilCiz(); adminCiz(); forumCiz(); mesajlariCiz();
+  await Tercih.baslat();
+  ustBarGuncelle(); profilCiz(); adminCiz(); forumCiz(); mesajlariCiz(); onerilenlerCiz();
   toast("E-postanız doğrulandı, hoş geldiniz!");
 }
 async function kodTekrarGonder() {
@@ -574,7 +615,7 @@ async function kodTekrarGonder() {
 async function cikisYap() {
   await Auth.cikis();
   Mesaj._acikSohbet = null; mesajRozetGuncelle(0);
-  ustBarGuncelle(); profilCiz(); adminCiz(); forumCiz(); kitapListesiniCiz(); mesajlariCiz(); toast("Çıkış yapıldı.");
+  ustBarGuncelle(); profilCiz(); adminCiz(); forumCiz(); kitapListesiniCiz(); mesajlariCiz(); onerilenlerCiz(); toast("Çıkış yapıldı.");
 }
 function ustBarGuncelle() {
   const alan = document.getElementById("girisAlani");
@@ -1031,9 +1072,13 @@ function kitaplarSayfasiKur() {
   if (!s5) return;
   filtre.sinif = urlParametre("sinif");
   filtre.ders = urlParametre("ders");
+  if (filtre.sinif) Tercih.sinifGor(filtre.sinif);
+  if (filtre.sinif && filtre.ders) Tercih.dersGor(filtre.sinif, filtre.ders);
   s5.innerHTML = `<option value="">Tüm Sınıflar (5-8)</option>` + [5, 6, 7, 8].map(s => `<option value="${s}" ${String(filtre.sinif) === String(s) ? "selected" : ""}>${s}. Sınıf</option>`).join("") + `<option value="0" ${filtre.sinif === "0" ? "selected" : ""}>Ortaokul Seçmeli</option>`;
   document.getElementById("fDers").innerHTML = `<option value="">Tüm Dersler</option>` + MUfredat.dersler.map(d => `<option value="${d.id}" ${filtre.ders === d.id ? "selected" : ""}>${d.ad}</option>`).join("");
   kitapListesiniCiz();
+  if (filtre.sinif) Tercih.sinifGor(filtre.sinif);
+  if (filtre.sinif && filtre.ders) Tercih.dersGor(filtre.sinif, filtre.ders);
 }
 function sinifSayfasiKur() {
   const sinif = document.body.dataset.sinif || "";
@@ -1085,15 +1130,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     animasyonKur();
     const sayfa = document.body.dataset.sayfa || "index";
     const uzak = await Auth.baslat();
+    await Tercih.baslat();
     const rozet = document.getElementById("modRozeti");
     if (rozet) rozet.textContent = uzak ? "Ortak veritabanına bağlı" : "Yerel mod (sunucu yok)";
     ustBarGuncelle();
     girisYapilandir();
     kitapListesiniCiz();
     resmiKaynaklariCiz();
-    if (sayfa === "index") { istatistikleriCiz(); sonSorularCiz(); }
+    if (sayfa === "index") { istatistikleriCiz(); sonSorularCiz(); await onerilenlerCiz(); }
     if (sayfa === "kitaplar") kitaplarSayfasiKur();
-    if (sayfa.startsWith("sinif") || sayfa === "secmeli") sinifSayfasiKur();
+    if (sayfa.startsWith("sinif") || sayfa === "secmeli") { sinifSayfasiKur(); if (document.body.dataset.sinif) Tercih.sinifGor(document.body.dataset.sinif); }
     if (sayfa === "forum") forumSayfasiKur();
     if (sayfa === "odevler") odevSayfasiKur();
     await forumCiz();
@@ -1104,6 +1150,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   } finally {
     setTimeout(() => document.querySelectorAll(".reveal").forEach(e => e.classList.add("gorunur")), 1800);
   }
+  try { reklamKur(); } catch (e) {}
   setInterval(() => {
     const a = document.getElementById("sayfaNo"), b = document.getElementById("sayfaNoAlt");
     if (a && b) b.textContent = "Sayfa " + a.textContent;
