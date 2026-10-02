@@ -39,3 +39,20 @@ Mevcut üretim veritabanında manuel SQL kullanacaksanız `db-postgres.sql` dosy
 
 ## Not
 Bu paketi Vercel'e yüklediğinizde mevcut environment variable'lar (`DATABASE_URL`, `JWT_SECRET`, vb.) korunmalıdır. WebRTC için ek bir Vercel değişkeni gerekmiyor.
+
+## Sesli arama düzeltmesi — 2.1
+- Caller tarafında ICE candidate/answer yarış durumu düzeltildi.
+- Remote ICE adayları, remote SDP kurulmadan işlenmiyor; kuyrukta bekletiliyor.
+- SDP gönderiminden önce ICE gathering için kısa bekleme eklendi.
+- Ses elementi `playsInline` + `play()` ile başlatılıyor.
+- HTTPS/mikrofon/WebRTC hataları kullanıcıya daha anlaşılır gösteriliyor.
+- `sesli-yapilandirma` endpoint'i eklendi; Vercel'de opsiyonel TURN bilgisi env'den alınabiliyor.
+- `API.sor()` artık HTTP / geçersiz JSON hatalarını gizlemiyor.
+
+### Opsiyonel TURN (önerilen üretim ayarı)
+Vercel Environment Variables:
+- `TURN_URLS` = virgülle ayrılmış TURN URL'leri
+- `TURN_USERNAME` = TURN kullanıcı adı
+- `TURN_CREDENTIAL` = TURN şifresi/credential
+
+TURN yoksa STUN ile çalışmaya devam eder; ancak bazı NAT/firewall ağlarında WebRTC için TURN röle gerekir.

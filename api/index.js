@@ -518,6 +518,22 @@ module.exports = async (req, res) => {
         return gonder(res, 200, { ok: true, kayitlar });
       }
 
+      case 'sesli-yapilandirma': {
+        const k = await oturum(req);
+        if (!k) return hata(res, 'Bu işlem için giriş yapmalısınız.', 401);
+        const ice = [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun.cloudflare.com:3478' }
+        ];
+        const turnUrls = String(process.env.TURN_URLS || process.env.TURN_URL || '')
+          .split(',').map(x => x.trim()).filter(Boolean);
+        const turnUser = String(process.env.TURN_USERNAME || '');
+        const turnCred = String(process.env.TURN_CREDENTIAL || '');
+        if (turnUrls.length && turnUser && turnCred) {
+          turnUrls.forEach(url => ice.push({ urls: url, username: turnUser, credential: turnCred }));
+        }
+        return gonder(res, 200, { ok: true, ice_servers: ice });
+      }
       case 'sesli-arama-baslat': {
         const k = await oturum(req);
         if (!k) return hata(res, 'Bu işlem için giriş yapmalısınız.', 401);
