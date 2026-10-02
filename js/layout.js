@@ -12,82 +12,89 @@ const Layout = {
     });
   },
   ust() {
+    const sayfa = this.sayfa();
+    const basliklar = {
+      index: ['Ana sayfa', 'Bugün ne çalışmak istersin?'],
+      kitaplar: ['Kitaplık', 'Tüm ders kitaplarını keşfet'],
+      'sinif-5': ['5. Sınıf', '5. sınıf ders kitapları'],
+      'sinif-6': ['6. Sınıf', '6. sınıf ders kitapları'],
+      'sinif-7': ['7. Sınıf', '7. sınıf ders kitapları'],
+      'sinif-8': ['8. Sınıf', '8. sınıf ders kitapları'],
+      secmeli: ['Seçmeli dersler', 'Seçmeli ders kitapları'],
+      odevler: ['Çalışma alanı', 'Hazır ödevler ve denemeler'],
+      forum: ['Yardım forumu', 'Bir soruda takıldıysan birlikte çözelim'],
+      mesajlar: ['Mesajlar', 'Özel görüşmelerin burada'],
+      profil: ['Profilim', 'Hesabını ve tercihlerini yönet'],
+      yardim: ['Yardım', 'Sık sorulanlar ve kullanım rehberi'],
+      yonetim: ['Yönetim', 'Platform yönetimi'],
+      gizlilik: ['Gizlilik', 'Verilerin ve güvenlik'],
+    };
+    const b = basliklar[sayfa] || ['Ortaokulluyuz', 'Eğitim çalışma alanı'];
     return `
-<div class="kurum-serit">
-  <div class="sutun-dar px-4">
-    <span>T.C. Millî Eğitim Bakanlığı öğretim programlarına uygun dijital eğitim içerikleri</span>
-    <span class="kurum-serit-sag">
-      <span id="modRozeti" class="mod-rozet">Bağlanıyor…</span>
-      <a href="https://tymm.meb.gov.tr/ders-kitaplari/temel-egitim" target="_blank" rel="noopener">MEB Kitap Kataloğu</a>
-      <a href="https://ogmmateryal.eba.gov.tr/ders-sunulari" target="_blank" rel="noopener">OGM Materyal</a>
-      <a href="https://mebi.eba.gov.tr" target="_blank" rel="noopener">MEBİ</a>
-    </span>
-  </div>
-</div>
-<header class="ana-nav">
-  <div class="sutun-dar px-4 nav-ic">
-    <a class="marka" href="index.html" style="text-decoration:none">
-      <img class="amblem-img" src="img/logo.svg?v=7" alt="Ortaokulluyuz logosu" />
-      <span>
-        <span class="marka-ad">Ortaokulluyuz</span>
-        <span class="marka-alt">Dijital Ders Kitabı ve Eğitim Platformu • 5-8. Sınıflar</span>
-      </span>
-    </a>
-    <nav class="ust-menu">
-      <a data-nav="index" href="index.html">Anasayfa</a>
-      <a data-nav="kitaplar" href="kitaplar.html">Tüm Kitaplar</a>
-      <a data-nav="sinif-5" href="sinif-5.html">5. Sınıf</a>
-      <a data-nav="sinif-6" href="sinif-6.html">6. Sınıf</a>
-      <a data-nav="sinif-7" href="sinif-7.html">7. Sınıf</a>
-      <a data-nav="sinif-8" href="sinif-8.html">8. Sınıf</a>
-      <a data-nav="secmeli" href="secmeli.html">Seçmeli</a>
-      <a data-nav="odevler" href="odevler.html">Ödevler</a>
-      <a data-nav="forum" href="forum.html">Forum</a>
-      <a data-nav="mesajlar" href="mesajlar.html">Mesajlar <span id="mesajRozet" class="sayac hidden"></span></a>
-      <a data-nav="yardim" href="yardim.html">Yardım</a>
+<div class="app-shell">
+  <aside class="side-rail" aria-label="Ana menü">
+    <div class="rail-brand">
+      <a class="rail-logo" href="index.html" aria-label="Ortaokulluyuz ana sayfa"><img src="img/logo.svg?v=8" alt="" /></a>
+      <div><div class="rail-name">Ortaokulluyuz</div><div class="rail-sub">5–8. sınıf eğitim alanı</div></div>
+    </div>
+    <div class="rail-divider"></div>
+    <div class="rail-label">ÇALIŞMA ALANI</div>
+    <nav class="rail-nav">
+      <a data-nav="index" href="index.html"><span class="rail-ico">${ikon('kitap',17)}</span><span>Ana sayfa</span></a>
+      <a data-nav="kitaplar" href="kitaplar.html"><span class="rail-ico">${ikon('kitap',17)}</span><span>Kitaplık</span></a>
+      <a data-nav="odevler" href="odevler.html"><span class="rail-ico">${ikon('kalem',17)}</span><span>Ödevler &amp; denemeler</span></a>
+      <a data-nav="forum" href="forum.html"><span class="rail-ico">${ikon('yorum',17)}</span><span>Yardım forumu</span></a>
+      <a data-nav="mesajlar" href="mesajlar.html"><span class="rail-ico">${ikon('mesaj',17)}</span><span>Mesajlar <span id="mesajRozet" class="sayac hidden"></span></span></a>
     </nav>
-    <div id="girisAlani" class="ml-auto flex items-center gap-2"></div>
-  </div>
-  <div class="sutun-dar px-4 mobil-menu-sar">
-    <select class="girdi mobil-menu" onchange="if(this.value)location.href=this.value">
-      <option value="">Menüye git…</option>
-      <option value="index.html">Anasayfa</option>
-      <option value="kitaplar.html">Tüm Kitaplar</option>
-      <option value="sinif-5.html">5. Sınıf Kitapları</option>
-      <option value="sinif-6.html">6. Sınıf Kitapları</option>
-      <option value="sinif-7.html">7. Sınıf Kitapları</option>
-      <option value="sinif-8.html">8. Sınıf Kitapları</option>
-      <option value="secmeli.html">Seçmeli Ders Kitapları</option>
-      <option value="odevler.html">Hazır Ödevler ve Sınavlar</option>
-      <option value="forum.html">Ödev Forumu</option>
-      <option value="mesajlar.html">Mesajlar</option>
-      <option value="profil.html">Profilim</option>
-      <option value="yardim.html">Yardım</option>
-    </select>
-  </div>
-</header>`;
+    <div class="rail-label">SINIFLAR</div>
+    <nav class="rail-nav rail-nav-small">
+      <a data-nav="sinif-5" href="sinif-5.html"><span class="class-dot">5</span><span>5. Sınıf</span></a>
+      <a data-nav="sinif-6" href="sinif-6.html"><span class="class-dot">6</span><span>6. Sınıf</span></a>
+      <a data-nav="sinif-7" href="sinif-7.html"><span class="class-dot">7</span><span>7. Sınıf</span></a>
+      <a data-nav="sinif-8" href="sinif-8.html"><span class="class-dot">8</span><span>8. Sınıf</span></a>
+      <a data-nav="secmeli" href="secmeli.html"><span class="class-dot class-dot-alt">+</span><span>Seçmeli dersler</span></a>
+    </nav>
+    <div class="rail-spacer"></div>
+    <div class="rail-mini-card">
+      <div class="rail-mini-title">Resmî kaynaklar</div>
+      <a href="https://tymm.meb.gov.tr/ders-kitaplari/temel-egitim" target="_blank" rel="noopener">MEB Ders Kitapları ↗</a>
+      <a href="https://mebi.eba.gov.tr" target="_blank" rel="noopener">MEBİ ↗</a>
+    </div>
+    <a class="rail-help" data-nav="yardim" href="yardim.html"><span class="rail-ico">${ikon('uyari',17)}</span><span>Yardım</span></a>
+  </aside>
+  <section class="app-stage">
+    <div class="top-strip-v4">
+      <div><span class="top-strip-mark">MEB</span> Millî Eğitim Bakanlığı programlarına uygun dijital içerikler</div>
+      <div class="top-strip-links"><span id="modRozeti" class="mod-rozet">Bağlanıyor…</span><a href="gizlilik.html">Gizlilik</a></div>
+    </div>
+    <header class="topbar-v4">
+      <div class="topbar-left">
+        <button class="rail-toggle" type="button" onclick="document.body.classList.toggle('rail-acik')" aria-label="Menüyü aç/kapat">☰</button>
+        <div class="page-context"><div class="page-kicker">${b[0]}</div><div class="page-title">${b[1]}</div></div>
+      </div>
+      <div class="topbar-center">
+        <div class="global-search"><span>${ikon('ara',16)}</span><input id="globalArama" type="search" autocomplete="off" placeholder="Kitap, ders veya konu ara…" onkeydown="globalAra(event)" /></div>
+      </div>
+      <div id="girisAlani" class="topbar-account"></div>
+    </header>
+    <div class="mobile-nav-v4">
+      <a data-nav="index" href="index.html">Ana</a><a data-nav="kitaplar" href="kitaplar.html">Kitaplar</a><a data-nav="odevler" href="odevler.html">Ödevler</a><a data-nav="forum" href="forum.html">Forum</a><a data-nav="mesajlar" href="mesajlar.html">Mesajlar</a>
+      <select onchange="if(this.value)location.href=this.value" aria-label="Sayfa seçin"><option value="">Daha fazla</option><option value="profil.html">Profilim</option><option value="secmeli.html">Seçmeli dersler</option><option value="yardim.html">Yardım</option></select>
+    </div>`;
   },
   alt() {
     return `
-<footer class="sayfa-alt">
-  <div class="sutun-dar px-4 alt-ic">
-    <div>
-      <div class="alt-mark">Ortaokulluyuz</div>
-      <div class="alt-metin">5-8. sınıflar için dijital ders kitabı erişimi ve eğitim destek platformu.</div>
-    </div>
-    <div>
-      <div class="alt-baslik">Sayfalar</div>
-      <div class="alt-metin"><a href="kitaplar.html">Tüm Kitaplar</a> • <a href="odevler.html">Hazır Ödevler</a> • <a href="forum.html">Ödev Forumu</a> • <a href="mesajlar.html">Mesajlar</a> • <a href="profil.html">Profilim</a> • <a href="yardim.html">Yardım</a></div>
-      <div class="alt-metin"><a href="sinif-5.html">5. Sınıf</a> • <a href="sinif-6.html">6. Sınıf</a> • <a href="sinif-7.html">7. Sınıf</a> • <a href="sinif-8.html">8. Sınıf</a> • <a href="secmeli.html">Seçmeli Dersler</a></div>
-    </div>
-    <div>
-      <div class="alt-baslik">Resmî Bağlantılar</div>
-      <div class="alt-metin"><a href="https://tymm.meb.gov.tr/ders-kitaplari/temel-egitim" target="_blank" rel="noopener">MEB Ders Kitapları</a> • <a href="https://ogmmateryal.eba.gov.tr" target="_blank" rel="noopener">OGM Materyal</a> • <a href="https://mebi.eba.gov.tr" target="_blank" rel="noopener">MEBİ</a></div>
-      <div class="alt-metin alt-not">Resmî MEB yayını değildir. Kitap PDF'leri MEB sunucularından sunulur. <a href="gizlilik.html">Gizlilik Politikası</a></div>
-    </div>
+    <footer class="site-footer-v4">
+      <div class="footer-grid-v4">
+        <div><div class="footer-brand">Ortaokulluyuz</div><p>5–8. sınıflar için sade, hızlı ve öğrencinin çalışma akışını kolaylaştıran dijital eğitim platformu.</p></div>
+        <div><div class="footer-head">Keşfet</div><a href="kitaplar.html">Kitaplık</a><a href="odevler.html">Ödevler</a><a href="forum.html">Forum</a><a href="mesajlar.html">Mesajlar</a></div>
+        <div><div class="footer-head">Sınıflar</div><a href="sinif-5.html">5. Sınıf</a><a href="sinif-6.html">6. Sınıf</a><a href="sinif-7.html">7. Sınıf</a><a href="sinif-8.html">8. Sınıf</a><a href="secmeli.html">Seçmeli dersler</a></div>
+        <div><div class="footer-head">Güvenlik</div><a href="gizlilik.html">Gizlilik politikası</a><a href="yardim.html">Yardım merkezi</a><span class="footer-note">Oturumlar, erişim ve kötüye kullanım kontrolleri sunucu tarafında yürütülür.</span></div>
+      </div>
+      <div class="footer-bottom-v4">© 2026–2027 Ortaokulluyuz • Resmî MEB yayını değildir. Kitap bağlantıları ilgili resmî kaynaklara yönlendirir.</div>
+    </footer>
   </div>
-  <div class="alt-cizgi">© 2026-2027 Ortaokulluyuz Eğitim Platformu</div>
-</footer>`;
+</div>`;
   },
   modallar() {
     return `
@@ -170,10 +177,11 @@ const Layout = {
     </div>
     <form id="girisForm" class="auth-form" onsubmit="girisYap(event)">
       <label class="auth-etiket">E-posta adresiniz</label>
-      <input id="gEposta" type="email" required class="girdi auth-girdi" placeholder="ornek@eposta.com" />
+      <input id="gEposta" type="email" required class="girdi auth-girdi" placeholder="ornek@eposta.com" autocomplete="email" />
+      <input id="gWebsite" class="bot-trap" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" />
       <label class="auth-etiket">Şifreniz</label>
       <div class="sifre-sar">
-        <input id="gSifre" type="password" required class="girdi auth-girdi" placeholder="••••••" />
+        <input id="gSifre" type="password" required class="girdi auth-girdi" placeholder="••••••" autocomplete="current-password" />
         <button type="button" class="sifre-goz" onclick="sifreGoster('gSifre',this)" title="Göster/Gizle"><svg class="ikon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
       </div>
       <div id="girisCaptcha"></div>
@@ -187,7 +195,8 @@ const Layout = {
     </form>
     <form id="kayitForm" class="auth-form hidden" onsubmit="kayitYap(event)">
       <label class="auth-etiket">Ad Soyad</label>
-      <input id="kAd" required class="girdi auth-girdi" placeholder="Adınız Soyadınız" />
+      <input id="kAd" required class="girdi auth-girdi" placeholder="Adınız Soyadınız" autocomplete="name" />
+      <input id="kWebsite" class="bot-trap" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" />
       <div class="kanal-sekmeler" id="kayitKanal">
         <button type="button" class="kanal-sekme aktif" data-kanal="eposta" onclick="kayitKanalSec('eposta')">E-posta ile</button>
         <button type="button" class="kanal-sekme" data-kanal="telefon" onclick="kayitKanalSec('telefon')">Telefon ile</button>
@@ -200,9 +209,9 @@ const Layout = {
         <label class="auth-etiket">Cep telefonunuz</label>
         <div class="telefon-sar"><span class="telefon-on">+90</span><input id="kTelefon" type="tel" inputmode="tel" class="girdi auth-girdi" placeholder="5__ ___ __ __" /></div>
       </div>
-      <label class="auth-etiket">Şifre <span class="auth-ipucu">(en az 4 karakter)</span></label>
+      <label class="auth-etiket">Şifre <span class="auth-ipucu">(en az 8; büyük/küçük harf + rakam)</span></label>
       <div class="sifre-sar">
-        <input id="kSifre" type="password" required class="girdi auth-girdi" placeholder="Güçlü bir şifre seçin" />
+        <input id="kSifre" type="password" required class="girdi auth-girdi" placeholder="Güçlü bir şifre seçin" autocomplete="new-password" />
         <button type="button" class="sifre-goz" onclick="sifreGoster('kSifre',this)" title="Göster/Gizle"><svg class="ikon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
       </div>
       <div id="kayitCaptcha"></div>

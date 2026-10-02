@@ -22,7 +22,12 @@ function guvenlikBasliklari(res) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'microphone=(self), camera=(), geolocation=(), payment=()');
+  res.setHeader('Permissions-Policy', 'microphone=(self), camera=(), geolocation=(), payment=(), usb=(), midi=()');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+  res.setHeader('Origin-Agent-Cluster', '?1');
+  res.setHeader('X-DNS-Prefetch-Control', 'off');
+  res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
   res.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
 }
 function gonder(res, kod, nesne) {
@@ -96,15 +101,27 @@ const KOD_ISLEMLERI = Object.fromEntries(Object.entries(ISLEM_KODLARI).map(([k, 
 
 function govdeOku(req) {
   return new Promise((resolve) => {
+    const limit = 4 * 1024 * 1024;
     if (req.body && typeof req.body === 'object') return resolve(req.body);
     if (typeof req.body === 'string' && req.body) {
-      try { return resolve(JSON.parse(req.body)); } catch (e) { return resolve({}); }
+      if (Buffer.byteLength(req.body, 'utf8') > limit) return resolve({ __invalid_body: 'oversize' });
+      try { return resolve(JSON.parse(req.body)); } catch (e) { return resolve({ __invalid_body: 'json' }); }
     }
     let v = '';
-    req.on('data', (p) => { v += p; });
-    req.on('end', () => {
-      try { resolve(v ? JSON.parse(v) : {}); } catch (e) { resolve({}); }
+    let bytes = 0;
+    let asiri = false;
+    req.on('data', (chunk) => {
+      if (asiri) return;
+      bytes += Buffer.byteLength(chunk);
+      if (bytes > limit) { asiri = true; v = ''; return; }
+      v += chunk;
     });
+    req.on('end', () => {
+      if (asiri) return resolve({ __invalid_body: 'oversize' });
+      if (!v) return resolve({});
+      try { resolve(JSON.parse(v)); } catch (e) { resolve({ __invalid_body: 'json' }); }
+    });
+    req.on('error', () => resolve({ __invalid_body: 'stream' }));
   });
 }
 function girdi(govde, sorgu, ad, varsayilan) {
@@ -117,38 +134,106 @@ function cerezOku(req) {
   const h = req.headers && req.headers.cookie ? req.headers.cookie : '';
   h.split(';').forEach((p) => {
     const i = p.indexOf('=');
-    if (i > 0) c[p.slice(0, i).trim()] = decodeURIComponent(p.slice(i + 1).trim());
+    if (i > 0) {
+      const key = p.slice(0, i).trim();
+      const val = p.slice(i + 1).trim();
+      try { c[key] = decodeURIComponent(val); } catch (e) { c[key] = val; }
+    }
   });
   return c;
 }
+function guvenliBaglanti(req) {
+  const proto = req.headers && (req.headers['x-forwarded-proto'] || req.headers['x-forwarded-protocol'] || '');
+  return String(proto).split(',')[0].trim().toLowerCase() === 'https' || process.env.NODE_ENV === 'production';
+}
+function cookieEkle(res, c) {
+  const eski = res.getHeader && res.getHeader('Set-Cookie');
+  const liste = Array.isArray(eski) ? eski.slice() : (eski ? [eski] : []);
+  liste.push(c);
+  res.setHeader('Set-Cookie', liste);
+}
 function cerezYaz(res, req, deger, gun) {
-  let c = 'ook_token=' + deger + '; HttpOnly; Path=/; Max-Age=' + (gun * 86400) + '; SameSite=Lax';
-  const proto = req.headers && (req.headers['x-forwarded-proto'] || '');
-  if (String(proto).split(',')[0].trim() === 'https') c += '; Secure';
-  if (res.appendHeader) res.appendHeader('Set-Cookie', c); else res.setHeader('Set-Cookie', c);
+  const secure = guvenliBaglanti(req);
+  const ad = secure ? '__Host-ook_token' : 'ook_token';
+  let c = ad + '=' + encodeURIComponent(deger || '') + '; HttpOnly; Path=/; Max-Age=' + Math.max(0, Number(gun || 0) * 86400) + '; SameSite=Strict';
+  if (secure) c += '; Secure';
+  cookieEkle(res, c);
+  // Eski cookie'yi oturum yükseltme/düşürme sırasında temizle.
+  if (secure) cookieEkle(res, 'ook_token=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax; Secure');
 }
 function guvenlikCerezYaz(res, req, deger, saniye) {
-  let c = 'ook_guard=' + encodeURIComponent(deger || '') + '; HttpOnly; Path=/; Max-Age=' + Number(saniye || 0) + '; SameSite=Lax';
-  const proto = req.headers && (req.headers['x-forwarded-proto'] || '');
-  if (String(proto).split(',')[0].trim() === 'https') c += '; Secure';
-  res.appendHeader ? res.appendHeader('Set-Cookie', c) : res.setHeader('Set-Cookie', c);
+  const secure = guvenliBaglanti(req);
+  const ad = secure ? '__Host-ook_guard' : 'ook_guard';
+  let c = ad + '=' + encodeURIComponent(deger || '') + '; HttpOnly; Path=/; Max-Age=' + Math.max(0, Number(saniye || 0)) + '; SameSite=Strict';
+  if (secure) c += '; Secure';
+  cookieEkle(res, c);
+  if (secure) cookieEkle(res, 'ook_guard=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax; Secure');
 }
 function guvenlikCerezOku(req) {
-  return cerezOku(req).ook_guard || '';
+  const c = cerezOku(req);
+  return c['__Host-ook_guard'] || c.ook_guard || '';
 }
 function guvenlikCerezSil(res, req) { guvenlikCerezYaz(res, req, '', 0); }
-
-function jetonVer(res, req, kullanici) {
-  const j = jwt.sign({ uid: kullanici.id }, process.env.JWT_SECRET || 'degistirin', { expiresIn: '30d' });
-  cerezYaz(res, req, j, 30);
+function jwtSecret() {
+  const s = String(process.env.JWT_SECRET || '');
+  if (s.length < 32) throw new Error('JWT_SECRET en az 32 karakter olmalı.');
+  return s;
 }
-function jetonSil(res, req) { cerezYaz(res, req, '', 0); }
+function uaOku(req) { return String((req.headers && (req.headers['user-agent'] || req.headers['User-Agent'])) || 'unknown').slice(0, 512); }
+function uaHash(req) { return sha256(uaOku(req) + '|' + guvenlikPepper()); }
+
+async function guvenlikOturumKaydet(client, req, kullanici, jti, bitis) {
+  await guvenlikSemasiHazirla();
+  const p = client || pool();
+  await p.query(
+    `INSERT INTO guvenlik_oturum (jti_hash, kullanici_id, bitis, ua_hash, ip_hash)
+     VALUES ($1,$2,$3,$4,$5)
+     ON CONFLICT (jti_hash) DO NOTHING`,
+    [sha256(jti + '|' + guvenlikPepper()), kullanici.id, bitis, uaHash(req), ipHash(req)]
+  );
+  // Kullanıcı başına en fazla 8 canlı oturum; en eskiler pasifleştirilir.
+  await p.query(`
+    UPDATE guvenlik_oturum SET iptal = TRUE
+    WHERE kullanici_id = $1 AND jti_hash IN (
+      SELECT jti_hash FROM guvenlik_oturum
+      WHERE kullanici_id = $1 AND iptal = FALSE AND bitis > NOW()
+      ORDER BY olusturma DESC OFFSET 8
+    )`, [kullanici.id]);
+}
+async function jetonVer(res, req, kullanici, client) {
+  const jti = crypto.randomUUID();
+  const bitis = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+  const j = jwt.sign({ uid: kullanici.id, jti }, jwtSecret(), { expiresIn: '14d', issuer: 'ortaokulluyuz', audience: 'ortaokulluyuz-web' });
+  await guvenlikOturumKaydet(client, req, kullanici, jti, bitis.toISOString());
+  cerezYaz(res, req, j, 14);
+}
+async function jetonSil(res, req, client) {
+  const c = cerezOku(req);
+  const token = c['__Host-ook_token'] || c.ook_token || '';
+  if (token) {
+    try {
+      const o = jwt.verify(token, jwtSecret(), { issuer: 'ortaokulluyuz', audience: 'ortaokulluyuz-web' });
+      await guvenlikSemasiHazirla();
+      await (client || pool()).query('UPDATE guvenlik_oturum SET iptal = TRUE WHERE jti_hash = $1', [sha256(String(o.jti || '') + '|' + guvenlikPepper())]);
+    } catch (e) {}
+  }
+  cerezYaz(res, req, '', 0);
+}
 
 async function oturum(req) {
   const c = cerezOku(req);
-  if (!c.ook_token) return null;
+  const token = c['__Host-ook_token'] || c.ook_token || '';
+  if (!token) return null;
   try {
-    const o = jwt.verify(c.ook_token, process.env.JWT_SECRET || 'degistirin');
+    const o = jwt.verify(token, jwtSecret(), { issuer: 'ortaokulluyuz', audience: 'ortaokulluyuz-web' });
+    if (!o.jti) return null;
+    await guvenlikSemasiHazirla();
+    const sr = await pool().query(
+      `SELECT jti_hash, kullanici_id FROM guvenlik_oturum
+       WHERE jti_hash = $1 AND kullanici_id = $2 AND iptal = FALSE AND bitis > NOW() AND ua_hash = $3`,
+      [sha256(String(o.jti) + '|' + guvenlikPepper()), Number(o.uid), uaHash(req)]
+    );
+    if (!sr.rows.length) return null;
     const r = await pool().query('SELECT id, ad, eposta, telefon, rol FROM uyeler WHERE id = $1', [o.uid]);
     return r.rows[0] || null;
   } catch (e) { return null; }
@@ -158,7 +243,13 @@ function rolAdiDB(r) {
 }
 
 function guvenlikPepper() {
-  return process.env.SECURITY_PEPPER || process.env.JWT_SECRET || 'ook-guvenlik-degistirilmeli';
+  const p = String(process.env.SECURITY_PEPPER || '');
+  if (p.length >= 32) return p;
+  // Local development can reuse JWT_SECRET; production should always set a separate pepper.
+  if (process.env.NODE_ENV === 'production') throw new Error('SECURITY_PEPPER en az 32 karakter olmalı.');
+  const j = String(process.env.JWT_SECRET || '');
+  if (j.length >= 32) return j;
+  return 'ook-gelistirme-guvenlik-pepperi-degistirilmeli';
 }
 function sha256(v) {
   return crypto.createHash('sha256').update(String(v)).digest('hex');
@@ -176,16 +267,14 @@ function originGuvenliMi(req) {
   const site = req.headers && req.headers['sec-fetch-site'];
   if (site === 'cross-site') return false;
   const origin = req.headers && req.headers.origin;
-  if (!origin) return true;
+  if (!origin) return site === 'same-origin' || site === 'same-site' || !site;
   try {
-    const allowed = process.env.ALLOWED_ORIGIN
-      ? new URL(process.env.ALLOWED_ORIGIN).host
-      : String((req.headers && req.headers.host) || '').split(',')[0].trim();
-    return new URL(origin).host === allowed;
+    const raw = process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGIN || String((req.headers && req.headers.host) || '');
+    const allowed = String(raw).split(',').map(x => x.trim()).filter(Boolean).map(x => { try { return new URL(x.includes('://') ? x : 'https://' + x).host; } catch (e) { return x; } });
+    return allowed.includes(new URL(origin).host);
   } catch (e) { return false; }
 }
-async function rateLimit(client, req, islem, limit, dakika) {
-  const anahtar = ipHash(req);
+async function hizSinir(client, anahtarHash, islem, limit, dakika) {
   const pencere = Math.floor(Date.now() / (dakika * 60 * 1000));
   const r = await client.query(
     `INSERT INTO guvenlik_hiz_sinir (anahtar_hash, islem, pencere, sayac)
@@ -193,18 +282,32 @@ async function rateLimit(client, req, islem, limit, dakika) {
      ON CONFLICT (anahtar_hash, islem, pencere)
      DO UPDATE SET sayac = guvenlik_hiz_sinir.sayac + 1
      RETURNING sayac`,
-    [anahtar, islem, pencere]
+    [anahtarHash, islem, pencere]
   );
   if (Math.random() < 0.015) {
     client.query('DELETE FROM guvenlik_hiz_sinir WHERE pencere < $1', [pencere - 120]).catch(() => {});
   }
   return Number(r.rows[0].sayac) <= limit;
 }
+async function rateLimit(client, req, islem, limit, dakika) {
+  const anahtar = sha256('device|' + ipOku(req) + '|' + uaOku(req) + '|' + guvenlikPepper());
+  return hizSinir(client, anahtar, islem, limit, dakika);
+}
+async function rateLimitIp(client, req, islem, limit, dakika) {
+  const anahtar = sha256('ip|' + ipOku(req) + '|' + guvenlikPepper());
+  return hizSinir(client, anahtar, 'ip:' + islem, limit, dakika);
+}
+async function rateLimitHedef(client, req, islem, hedef, limit, dakika) {
+  const normal = String(hedef || '').trim().toLocaleLowerCase('tr-TR');
+  if (!normal) return true;
+  const anahtar = sha256('target|' + normal + '|' + guvenlikPepper());
+  return hizSinir(client, anahtar, 'hedef:' + islem, limit, dakika);
+}
 async function gatewayTekrarKontrol(client, req, rawGovde) {
   const t = Number(rawGovde && rawGovde.t || 0);
   const n = String(rawGovde && rawGovde.n || '');
   if (!t || !n || Math.abs(Date.now() - t) > 2 * 60 * 1000) return false;
-  const imza = sha256(n + '|' + ipHash(req));
+  const imza = sha256(n + '|' + ipHash(req) + '|' + uaHash(req));
   const r = await client.query(
     `INSERT INTO guvenlik_nonce (nonce_hash, bitis) VALUES ($1, NOW() + INTERVAL '3 minutes')
      ON CONFLICT (nonce_hash) DO NOTHING RETURNING nonce_hash`,
@@ -235,10 +338,18 @@ function captchaUret() {
     cevap = String(Math.max(...sayilar));
   }
   const token = crypto.randomBytes(32).toString('base64url');
-  return { token, soru, cevap };
+  const powSalt = crypto.randomBytes(24).toString('hex');
+  const powDifficulty = 3;
+  return { token, soru, cevap, powSalt, powDifficulty };
+}
+function captchaPowGecerliMi(salt, pow, difficulty) {
+  const v = String(pow || '');
+  if (!salt || !v || v.length > 80) return false;
+  const d = Math.max(2, Math.min(5, Number(difficulty) || 3));
+  return sha256(String(salt) + '|' + v).startsWith('0'.repeat(d));
 }
 async function guvenlikGecisKontrol(client, req, islem, govde) {
-  const korunan = new Set(['kayit', 'giris', 'telefon-kayit', 'google-giris', 'kod-tekrar', 'sifre-degistir']);
+  const korunan = new Set(['kayit', 'giris', 'telefon-kayit', 'google-giris', 'kod-tekrar']);
   if (!korunan.has(islem)) return { ok: true };
   const token = String(guvenlikCerezOku(req) || '');
   if (!token) return { ok: false, mesaj: 'Güvenlik doğrulaması gerekli.', kod: 'CAPTCHA_REQUIRED' };
@@ -247,10 +358,11 @@ async function guvenlikGecisKontrol(client, req, islem, govde) {
        SET kullanim = kullanim + 1
      WHERE token_hash = $1
        AND ip_hash = $2
+       AND ua_hash = $3
        AND bitis > NOW()
        AND kullanim < 25
      RETURNING token_hash`,
-    [captchaTokenHash(token), ipHash(req)]
+    [captchaTokenHash(token), ipHash(req), uaHash(req)]
   );
   if (!r.rows.length) return { ok: false, mesaj: 'Güvenlik doğrulaması geçersiz veya süresi dolmuş.', kod: 'CAPTCHA_REQUIRED' };
   return { ok: true };
@@ -302,6 +414,9 @@ async function guvenlikSemasiHazirla() {
       soru VARCHAR(240) NOT NULL,
       cevap_hash CHAR(64) NOT NULL,
       ip_hash CHAR(64) NOT NULL,
+      ua_hash CHAR(64) NOT NULL DEFAULT '',
+      pow_salt CHAR(64) NOT NULL DEFAULT '',
+      pow_difficulty SMALLINT NOT NULL DEFAULT 3,
       deneme SMALLINT NOT NULL DEFAULT 0,
       kullanildi BOOLEAN NOT NULL DEFAULT FALSE,
       bitis TIMESTAMPTZ NOT NULL,
@@ -311,6 +426,7 @@ async function guvenlikSemasiHazirla() {
     await p.query(`CREATE TABLE IF NOT EXISTS captcha_gecis (
       token_hash CHAR(64) PRIMARY KEY,
       ip_hash CHAR(64) NOT NULL,
+      ua_hash CHAR(64) NOT NULL DEFAULT '',
       bitis TIMESTAMPTZ NOT NULL,
       kullanim INT NOT NULL DEFAULT 0,
       olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -328,6 +444,20 @@ async function guvenlikSemasiHazirla() {
       nonce_hash CHAR(64) PRIMARY KEY, bitis TIMESTAMPTZ NOT NULL
     )`);
     await p.query('CREATE INDEX IF NOT EXISTS idx_guvenlik_nonce_bitis ON guvenlik_nonce (bitis)');
+    await p.query("ALTER TABLE captcha_zorluk ADD COLUMN IF NOT EXISTS ua_hash CHAR(64) NOT NULL DEFAULT ''");
+    await p.query("ALTER TABLE captcha_zorluk ADD COLUMN IF NOT EXISTS pow_salt CHAR(64) NOT NULL DEFAULT ''");
+    await p.query("ALTER TABLE captcha_zorluk ADD COLUMN IF NOT EXISTS pow_difficulty SMALLINT NOT NULL DEFAULT 3");
+    await p.query("ALTER TABLE captcha_gecis ADD COLUMN IF NOT EXISTS ua_hash CHAR(64) NOT NULL DEFAULT ''");
+    await p.query("DELETE FROM captcha_zorluk WHERE ua_hash = ''").catch(() => {});
+    await p.query("DELETE FROM captcha_gecis WHERE ua_hash = ''").catch(() => {});
+    await p.query(`CREATE TABLE IF NOT EXISTS guvenlik_oturum (
+      jti_hash CHAR(64) PRIMARY KEY, kullanici_id INT NOT NULL, bitis TIMESTAMPTZ NOT NULL,
+      ua_hash CHAR(64) NOT NULL, ip_hash CHAR(64) NOT NULL, iptal BOOLEAN NOT NULL DEFAULT FALSE,
+      olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await p.query('CREATE INDEX IF NOT EXISTS idx_guvenlik_oturum_user ON guvenlik_oturum (kullanici_id, olusturma DESC)');
+    await p.query('CREATE INDEX IF NOT EXISTS idx_guvenlik_oturum_bitis ON guvenlik_oturum (bitis)');
+    await p.query('DELETE FROM guvenlik_oturum WHERE bitis < NOW() OR iptal = TRUE').catch(() => {});
   })().catch((err) => { _guvenlikSchemaReady = null; throw err; });
   return _guvenlikSchemaReady;
 }
@@ -400,37 +530,77 @@ async function dogrulamaSmsGonder(client, tel, ad) {
   return smsGonder(tel, 'Ortaokulluyuz dogrulama kodunuz: ' + kod + ' (15 dakika gecerli)');
 }
 
+function parolaGucluMu(sifre) {
+  const s = String(sifre || '');
+  return s.length >= 8 && s.length <= 128 && /[a-zçğıöşü]/.test(s) && /[A-ZÇĞİÖŞÜ]/.test(s) && /\d/.test(s);
+}
+function guvenliMetin(v, max) { return String(v == null ? '' : v).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').slice(0, max); }
+function govdeGuvenliMi(d) {
+  if (!d || typeof d !== 'object' || Array.isArray(d)) return false;
+  const keys = Object.keys(d);
+  if (keys.length > 70) return false;
+  for (const k of keys) {
+    if (String(k).length > 80) return false;
+    const v = d[k];
+    if (typeof v === 'string' && v.length > 50000) return false;
+  }
+  return true;
+}
+
 // ---------- yönlendirici ----------
 module.exports = async (req, res) => {
   const yol = String((req && req.url) || '').split('?')[0];
   const gateway = !yol || yol.endsWith('/api/gateway') || yol.endsWith('/api/gateway/');
   if (!gateway) return hata(res, 'Bu API uç noktası devre dışı.', 404, 'API_DISABLED');
   if (req.method !== 'POST') return hata(res, 'Bu uç nokta yalnızca POST kabul eder.', 405, 'METHOD_NOT_ALLOWED');
+  const ct = String((req.headers && req.headers['content-type']) || '').toLowerCase();
+  if (!ct.includes('application/json')) return hata(res, 'Geçersiz istek biçimi.', 415, 'UNSUPPORTED_MEDIA');
+  const cl = Number((req.headers && req.headers['content-length']) || 0);
+  if (cl > 4 * 1024 * 1024) return hata(res, 'İstek çok büyük.', 413, 'PAYLOAD_TOO_LARGE');
   const rawGovde = await govdeOku(req);
+  if (!govdeGuvenliMi(rawGovde)) {
+    const kod = rawGovde && rawGovde.__invalid_body === 'oversize' ? 413 : 400;
+    const hk = rawGovde && rawGovde.__invalid_body === 'oversize' ? 'PAYLOAD_TOO_LARGE' : 'BAD_BODY';
+    return hata(res, kod === 413 ? 'İstek çok büyük.' : 'Geçersiz istek gövdesi.', kod, hk);
+  }
   const islem = KOD_ISLEMLERI[String(rawGovde && rawGovde.a || '')] || '';
   const govde = (rawGovde && rawGovde.d && typeof rawGovde.d === 'object') ? rawGovde.d : {};
   const sorgu = {};
   const g = (ad, v) => girdi(govde, sorgu, ad, v);
+  if (String(govde.website || govde.__website || '').trim()) return hata(res, 'Geçersiz istek.', 403, 'BOT_REJECTED');
 
   if (!originGuvenliMi(req)) return hata(res, 'Geçersiz istek kaynağı.', 403, 'BAD_ORIGIN');
+  const dest = String((req.headers && req.headers['sec-fetch-dest']) || '');
+  if (dest && !['empty', 'cors'].includes(dest)) return hata(res, 'Geçersiz istek türü.', 403, 'BAD_FETCH');
   if (!islem) return hata(res, 'Geçersiz güvenlik isteği.', 404, 'BAD_ACTION');
 
-  if (islem === 'ping') return gonder(res, 200, { ok: true, zaman: new Date().toISOString() });
+  if (islem === 'ping') {
+    try {
+      jwtSecret();
+      guvenlikPepper();
+      await pool().query('SELECT 1');
+      return gonder(res, 200, { ok: true, zaman: new Date().toISOString() });
+    } catch (e) {
+      return hata(res, 'Sunucu güvenlik yapılandırması hazır değil.', 503, 'SERVER_NOT_READY');
+    }
+  }
 
   let client;
   try { client = pool(); }
-  catch (e) { return hata(res, 'Veritabanına bağlanılamadı (DATABASE_URL).', 500); }
+  catch (e) { return hata(res, 'Sunucuya bağlanılamadı.', 500); }
 
   try {
     await guvenlikSemasiHazirla();
     if (gateway && !await gatewayTekrarKontrol(client, req, rawGovde)) return hata(res, 'Geçersiz veya tekrarlanan istek.', 409, 'REQUEST_REJECTED');
     const globalLimit = await rateLimit(client, req, 'genel', 240, 1);
     if (!globalLimit) return hata(res, 'Çok fazla istek gönderildi. Biraz sonra tekrar deneyin.', 429, 'RATE_LIMIT');
+    const ipLimit = await rateLimitIp(client, req, 'genel', 600, 1);
+    if (!ipLimit) return hata(res, 'Ağınızdan çok fazla istek geldi. Biraz sonra tekrar deneyin.', 429, 'RATE_LIMIT');
 
     const ozelLimit = {
-      'captcha-yeni': [12, 10],
-      'captcha-dogrula': [15, 10],
-      'dogrula': [10, 15],
+      'captcha-yeni': [6, 10],
+      'captcha-dogrula': [10, 10],
+      'dogrula': [6, 15],
       'giris': [10, 10],
       'kayit': [5, 30],
       'telefon-kayit': [5, 30],
@@ -444,7 +614,10 @@ module.exports = async (req, res) => {
       'sesli-arama-teklif': [40, 1],
       'sesli-arama-yanit': [40, 1],
       'sesli-arama-sinyal': [90, 1],
-      'sikayet-et': [10, 10]
+      'sikayet-et': [10, 10],
+      'sifre-ver': [8, 15],
+      'rol-ata': [20, 10],
+      'uye-sil': [10, 10]
     };
     if (ozelLimit[islem]) {
       const [limit, dakika] = ozelLimit[islem];
@@ -454,6 +627,24 @@ module.exports = async (req, res) => {
     const guvenlik = await guvenlikGecisKontrol(client, req, islem, govde);
     if (!guvenlik.ok) return hata(res, guvenlik.mesaj, 428, guvenlik.kod);
 
+    if (islem === 'giris') {
+      const hedef = String(g('eposta', g('hedef', ''))).trim().toLocaleLowerCase('tr-TR');
+      if (!(await rateLimitHedef(client, req, islem, hedef, 8, 10))) return hata(res, 'Bu hesap için kısa sürede çok fazla giriş denemesi yapıldı. Biraz sonra tekrar deneyin.', 429, 'RATE_LIMIT');
+    }
+    if (islem === 'kayit') {
+      const hedef = String(g('eposta', '')).trim().toLocaleLowerCase('tr-TR');
+      if (hedef && !(await rateLimitHedef(client, req, islem, hedef, 3, 30))) return hata(res, 'Bu e-posta için çok fazla kayıt denemesi yapıldı.', 429, 'RATE_LIMIT');
+    }
+    if (islem === 'telefon-kayit') {
+      const hedef = String(g('telefon', '')).trim();
+      if (hedef && !(await rateLimitHedef(client, req, islem, hedef, 3, 30))) return hata(res, 'Bu telefon için çok fazla kayıt denemesi yapıldı.', 429, 'RATE_LIMIT');
+    }
+    if (islem === 'dogrula' || islem === 'kod-tekrar') {
+      const hedef = String(g('hedef', g('eposta', ''))).trim();
+      const limit = islem === 'dogrula' ? 8 : 3;
+      if (hedef && !(await rateLimitHedef(client, req, islem, hedef, limit, 15))) return hata(res, 'Bu doğrulama hedefi için çok fazla işlem yapıldı. Biraz sonra tekrar deneyin.', 429, 'RATE_LIMIT');
+    }
+
     switch (islem) {
       case 'captcha-yeni': {
         await client.query('DELETE FROM captcha_zorluk WHERE bitis < NOW()');
@@ -461,10 +652,10 @@ module.exports = async (req, res) => {
         const c = captchaUret();
         const bitis = new Date(Date.now() + 3 * 60 * 1000).toISOString();
         await client.query(
-          `INSERT INTO captcha_zorluk (token_hash, soru, cevap_hash, ip_hash, bitis) VALUES ($1,$2,$3,$4,$5)`,
-          [captchaTokenHash(c.token), c.soru, captchaCevapHash(c.cevap), ipHash(req), bitis]
+          `INSERT INTO captcha_zorluk (token_hash, soru, cevap_hash, ip_hash, ua_hash, pow_salt, pow_difficulty, bitis) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+          [captchaTokenHash(c.token), c.soru, captchaCevapHash(c.cevap), ipHash(req), uaHash(req), c.powSalt, c.powDifficulty, bitis]
         );
-        return gonder(res, 200, { ok: true, token: c.token, soru: c.soru, bitis: new Date(bitis).getTime() });
+        return gonder(res, 200, { ok: true, token: c.token, soru: c.soru, pow_salt: c.powSalt, pow_difficulty: c.powDifficulty, bitis: new Date(bitis).getTime() });
       }
 
       case 'captcha-dogrula': {
@@ -472,12 +663,14 @@ module.exports = async (req, res) => {
         const cevap = String(g('cevap', '')).trim();
         if (!token || !cevap) return hata(res, 'CAPTCHA cevabı gerekli.', 400, 'CAPTCHA_REQUIRED');
         const r = await client.query(
-          `SELECT token_hash, cevap_hash, deneme FROM captcha_zorluk
-           WHERE token_hash = $1 AND ip_hash = $2 AND bitis > NOW() AND kullanildi = FALSE`,
-          [captchaTokenHash(token), ipHash(req)]
+          `SELECT token_hash, cevap_hash, deneme, pow_salt, pow_difficulty FROM captcha_zorluk
+           WHERE token_hash = $1 AND ip_hash = $2 AND ua_hash = $3 AND bitis > NOW() AND kullanildi = FALSE`,
+          [captchaTokenHash(token), ipHash(req), uaHash(req)]
         );
         if (!r.rows.length) return hata(res, 'CAPTCHA bulunamadı veya süresi doldu.', 400, 'CAPTCHA_EXPIRED');
         const row = r.rows[0];
+        const pow = String(g('pow', ''));
+        if (!captchaPowGecerliMi(row.pow_salt, pow, row.pow_difficulty)) return hata(res, 'Güvenlik doğrulaması hazırlanamadı. Sayfayı yenileyip tekrar deneyin.', 400, 'CAPTCHA_POW');
         const eslesiyor = crypto.timingSafeEqual(Buffer.from(row.cevap_hash), Buffer.from(captchaCevapHash(cevap)));
         if (!eslesiyor) {
           const yeni = Number(row.deneme) + 1;
@@ -488,9 +681,9 @@ module.exports = async (req, res) => {
         const gecis = guvenlikTokenUret();
         const gecisBitis = new Date(Date.now() + 20 * 60 * 1000).toISOString();
         await client.query(
-          `INSERT INTO captcha_gecis (token_hash, ip_hash, bitis, kullanim) VALUES ($1,$2,$3,0)
-           ON CONFLICT (token_hash) DO UPDATE SET ip_hash = EXCLUDED.ip_hash, bitis = EXCLUDED.bitis, kullanim = 0`,
-          [captchaTokenHash(gecis), ipHash(req), gecisBitis]
+          `INSERT INTO captcha_gecis (token_hash, ip_hash, ua_hash, bitis, kullanim) VALUES ($1,$2,$3,$4,0)
+           ON CONFLICT (token_hash) DO UPDATE SET ip_hash = EXCLUDED.ip_hash, ua_hash = EXCLUDED.ua_hash, bitis = EXCLUDED.bitis, kullanim = 0`,
+          [captchaTokenHash(gecis), ipHash(req), uaHash(req), gecisBitis]
         );
         guvenlikCerezYaz(res, req, gecis, 20 * 60);
         return gonder(res, 200, { ok: true, bitis: new Date(gecisBitis).getTime() });
@@ -507,21 +700,21 @@ module.exports = async (req, res) => {
         const sifre = String(g('sifre', ''));
         if (ad.length < 3) return hata(res, 'Ad soyad en az 3 karakter olmalı.');
         if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(eposta)) return hata(res, 'Geçerli bir e-posta yazın.');
-        if (sifre.length < 4) return hata(res, 'Şifre en az 4 karakter olmalı.');
+        if (!parolaGucluMu(sifre)) return hata(res, 'Şifre en az 8 karakter olmalı; büyük/küçük harf ve rakam içermeli.', 400, 'WEAK_PASSWORD');
         const mevcut = await client.query('SELECT id FROM uyeler WHERE eposta = $1', [eposta]);
         if (mevcut.rows.length) return hata(res, 'Bu e-posta ile zaten kayıt var.');
         const mod = process.env.EMAIL_MODE || 'brevo';
         const onay = (mod === 'kapali' || mod === 'off') ? true : false;
         const ek = await client.query(
           'INSERT INTO uyeler (ad, eposta, parola, rol, eposta_onay) VALUES ($1,$2,$3,\'ogrenci\',$4) RETURNING id',
-          [ad, eposta, await bcrypt.hash(sifre, 10), onay]);
+          [ad, eposta, await bcrypt.hash(sifre, 12), onay]);
         const id = ek.rows[0].id;
         if (!onay) {
           const [gonderildi, pm] = await dogrulamaKoduGonder(client, eposta, ad);
           return gonder(res, 200, { ok: true, dogrulama_gerekli: true, eposta, posta_gonderildi: gonderildi, posta_hatasi: gonderildi ? '' : pm });
         }
         const kul = { id, ad, eposta, rol: 'ogrenci' };
-        jetonVer(res, req, kul);
+        await jetonVer(res, req, kul, client);
         return gonder(res, 200, { ok: true, kullanici: kul });
       }
 
@@ -542,7 +735,7 @@ module.exports = async (req, res) => {
         }
         await client.query('DELETE FROM dogrulama WHERE eposta = $1', [hedef]);
         await client.query('UPDATE uyeler SET eposta_onay = TRUE WHERE id = $1', [u.id]);
-        jetonVer(res, req, u);
+        await jetonVer(res, req, u, client);
         return gonder(res, 200, { ok: true, kullanici: u });
       }
 
@@ -571,11 +764,11 @@ module.exports = async (req, res) => {
         const anahtar = telGiris || girisHedef.toLowerCase();
         const sifre = String(g('sifre', ''));
         const u = (await client.query('SELECT id, ad, eposta, telefon, parola, rol, eposta_onay FROM uyeler WHERE eposta = $1 OR telefon = $1', [anahtar])).rows[0];
-        if (!u) return hata(res, 'Bu bilgilerle kayıt bulunamadı. Önce kayıt olun.', 404);
-        if (!(await bcrypt.compare(sifre, u.parola))) return hata(res, 'Şifre hatalı. Tekrar deneyin.', 401);
+        if (!u) return hata(res, 'E-posta/telefon veya şifre hatalı.', 401);
+        if (!u.parola || !(await bcrypt.compare(sifre, u.parola))) return hata(res, 'E-posta/telefon veya şifre hatalı.', 401);
         if (!u.eposta_onay) return hata(res, 'E-POSTA-DOGRULAMA-GEREK:Hesabınıza gönderilen 6 haneli kodu girerek doğrulayın.', 403);
         delete u.parola; delete u.eposta_onay;
-        jetonVer(res, req, u);
+        await jetonVer(res, req, u, client);
         return gonder(res, 200, { ok: true, kullanici: u });
       }
 
@@ -585,12 +778,12 @@ module.exports = async (req, res) => {
         const sifre = String(g('sifre', ''));
         if (ad.length < 3) return hata(res, 'Ad soyad en az 3 karakter olmalı.');
         if (!tel) return hata(res, 'Geçerli bir cep telefonu yazın (05XX XXX XX XX).');
-        if (sifre.length < 4) return hata(res, 'Şifre en az 4 karakter olmalı.');
+        if (!parolaGucluMu(sifre)) return hata(res, 'Şifre en az 8 karakter olmalı; büyük/küçük harf ve rakam içermeli.', 400, 'WEAK_PASSWORD');
         const mevcut = await client.query('SELECT id FROM uyeler WHERE telefon = $1 OR eposta = $1', [tel]);
         if (mevcut.rows.length) return hata(res, 'Bu telefon ile zaten kayıt var.');
         const ek = await client.query(
           'INSERT INTO uyeler (ad, eposta, parola, rol, eposta_onay, telefon) VALUES ($1,NULL,$2,\'ogrenci\',FALSE,$3) RETURNING id',
-          [ad, await bcrypt.hash(sifre, 10), tel]);
+          [ad, await bcrypt.hash(sifre, 12), tel]);
         const [gonderildi, pm] = await dogrulamaSmsGonder(client, tel, ad);
         return gonder(res, 200, { ok: true, dogrulama_gerekli: true, hedef: tel,
           posta_gonderildi: gonderildi, posta_hatasi: gonderildi ? '' : pm });
@@ -631,16 +824,23 @@ module.exports = async (req, res) => {
       }
 
       case 'cikis':
-        jetonSil(res, req);
+        await jetonSil(res, req, client);
         guvenlikCerezSil(res, req);
         return gonder(res, 200, { ok: true });
 
       case 'sifre-degistir': {
         const k = await oturum(req);
         if (!k) return hata(res, 'Bu işlem için giriş yapmalısınız.', 401);
+        const mevcut = String(g('mevcut', ''));
         const yeni = String(g('yeni', ''));
-        if (yeni.length < 6) return hata(res, 'Şifre en az 6 karakter olmalı.');
-        await client.query('UPDATE uyeler SET parola = $1 WHERE id = $2', [await bcrypt.hash(yeni, 10), k.id]);
+        const row = (await client.query('SELECT parola FROM uyeler WHERE id = $1', [k.id])).rows[0];
+        if (!row || !row.parola || !(await bcrypt.compare(mevcut, row.parola))) return hata(res, 'Mevcut şifre hatalı.', 401);
+        if (!parolaGucluMu(yeni)) return hata(res, 'Yeni şifre en az 8 karakter olmalı; büyük/küçük harf ve rakam içermeli.', 400, 'WEAK_PASSWORD');
+        if (mevcut === yeni) return hata(res, 'Yeni şifre mevcut şifrenizden farklı olmalı.');
+        await client.query('UPDATE uyeler SET parola = $1 WHERE id = $2', [await bcrypt.hash(yeni, 12), k.id]);
+        await client.query('UPDATE guvenlik_oturum SET iptal = TRUE WHERE kullanici_id = $1', [k.id]);
+        const u = { id:k.id, ad:k.ad, eposta:k.eposta, telefon:k.telefon, rol:k.rol };
+        await jetonVer(res, req, u, client);
         return gonder(res, 200, { ok: true });
       }
 
@@ -676,8 +876,9 @@ module.exports = async (req, res) => {
         const k = await oturum(req);
         if (!k || k.rol !== 'admin') return hata(res, 'Yetkisiz işlem.', 403);
         const id = Number(g('id', 0)); const yeni = String(g('yeni', ''));
-        if (yeni.length < 4) return hata(res, 'Şifre en az 4 karakter olmalı.');
-        await client.query('UPDATE uyeler SET parola = $1 WHERE id = $2', [await bcrypt.hash(yeni, 10), id]);
+        if (!parolaGucluMu(yeni)) return hata(res, 'Şifre en az 8 karakter olmalı; büyük/küçük harf ve rakam içermeli.', 400, 'WEAK_PASSWORD');
+        await client.query('UPDATE uyeler SET parola = $1 WHERE id = $2', [await bcrypt.hash(yeni, 12), id]);
+        await client.query('UPDATE guvenlik_oturum SET iptal = TRUE WHERE kullanici_id = $1', [id]);
         return gonder(res, 200, { ok: true });
       }
 
