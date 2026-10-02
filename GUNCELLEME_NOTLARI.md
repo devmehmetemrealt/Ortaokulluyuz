@@ -56,3 +56,9 @@ Vercel Environment Variables:
 - `TURN_CREDENTIAL` = TURN şifresi/credential
 
 TURN yoksa STUN ile çalışmaya devam eder; ancak bazı NAT/firewall ağlarında WebRTC için TURN röle gerekir.
+
+## v3.1 kritik düzeltme
+- `js/api.js` içindeki eksik `API.sor()` fonksiyonu tamamlandı.
+- İstemci artık `/api/gateway` endpoint'ine kısa işlem kodu (`a`), veri (`d`), zaman damgası (`t`) ve tek kullanımlık nonce (`n`) gönderiyor.
+- Bu eksiklik nedeniyle Auth sunucu bağlantısını başarısız sanıp yerel moda düşebiliyordu; düzeltildi.
+- HTML dosyalarındaki api.js cache sürümü `v=9` yapıldı.
