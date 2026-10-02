@@ -1,5 +1,6 @@
 // Ortaokulluyuz — JSON API (Vercel Serverless + Postgres).
-// Ön yüz api?islem=... adresinden konuşur. Kimlik: HttpOnly çerezde JWT.
+// Üretimde tüm istemci çağrıları /api/gateway üzerinden kısa işlem kodlarıyla gider.
+// Kimlik: HttpOnly çerezde JWT. Güvenlik: origin kontrolü, DB rate-limit, CAPTCHA geçiş tokenı.
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -14,12 +15,84 @@ function pool() {
   return _pool;
 }
 
+function guvenlikBasliklari(res) {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'microphone=(self), camera=(), geolocation=(), payment=()');
+  res.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
+}
 function gonder(res, kod, nesne) {
+  guvenlikBasliklari(res);
   res.statusCode = kod;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.end(JSON.stringify(nesne));
 }
-const hata = (res, mesaj, kod) => gonder(res, kod || 400, { ok: false, hata: mesaj });
+const hata = (res, mesaj, kod, hataKodu) => {
+  const v = { ok: false, hata: mesaj };
+  if (hataKodu) v.hata_kodu = hataKodu;
+  return gonder(res, kod || 400, v);
+};
+
+const ISLEM_KODLARI = {
+  'captcha-yeni': 'a33',
+  'captcha-dogrula': 'a34',
+  'ping': 'a0',
+  'oturum': 'a1',
+  'kayit': 'a2',
+  'dogrula': 'a3',
+  'kod-tekrar': 'a4',
+  'giris': 'a5',
+  'telefon-kayit': 'a6',
+  'google-giris': 'a7',
+  'yapilandirma': 'a8',
+  'cikis': 'a9',
+  'sifre-degistir': 'aa',
+  'uyeler': 'ab',
+  'rol-ata': 'ac',
+  'uye-sil': 'ad',
+  'sifre-ver': 'ae',
+  'uye-onayla': 'af',
+  'test-eposta': 'a10',
+  'istatistik': 'a11',
+  'sorular': 'a12',
+  'soru-ekle': 'a13',
+  'soru-sil': 'a14',
+  'yanit-ekle': 'a15',
+  'yanit-sil': 'a16',
+  'begeni': 'a17',
+  'dogru-isaretle': 'a18',
+  'favoriler': 'a19',
+  'favori-ekle': 'a1a',
+  'favori-cikar': 'a1b',
+  'tercih-etki': 'a1c',
+  'tercih-ozet': 'a1d',
+  'sesli-yapilandirma': 'a1e',
+  'sesli-arama-baslat': 'a1f',
+  'sesli-gelen-arama': 'a20',
+  'sesli-arama-teklif': 'a21',
+  'sesli-arama-yanit': 'a22',
+  'sesli-arama-durum-guncelle': 'a23',
+  'sesli-arama-sinyal': 'a24',
+  'sesli-arama-kapat': 'a25',
+  'sesli-arama-durum': 'a26',
+  'kisiler': 'a27',
+  'sohbetler': 'a28',
+  'mesajlar': 'a29',
+  'mesaj-gonder': 'a2a',
+  'mesaj-sil': 'a2b',
+  'denetim-mesajlar': 'a2c',
+  'sikayet-et': 'a2d',
+  'sikayetler': 'a2e',
+  'sikayet-kapat': 'a2f',
+  'paylasimlar': 'a30',
+  'paylasim-ekle': 'a31',
+  'paylasim-sil': 'a32',
+};
+const KOD_ISLEMLERI = Object.fromEntries(Object.entries(ISLEM_KODLARI).map(([k, v]) => [v, k]));
 
 function govdeOku(req) {
   return new Promise((resolve) => {
@@ -52,8 +125,19 @@ function cerezYaz(res, req, deger, gun) {
   let c = 'ook_token=' + deger + '; HttpOnly; Path=/; Max-Age=' + (gun * 86400) + '; SameSite=Lax';
   const proto = req.headers && (req.headers['x-forwarded-proto'] || '');
   if (String(proto).split(',')[0].trim() === 'https') c += '; Secure';
-  res.setHeader('Set-Cookie', c);
+  if (res.appendHeader) res.appendHeader('Set-Cookie', c); else res.setHeader('Set-Cookie', c);
 }
+function guvenlikCerezYaz(res, req, deger, saniye) {
+  let c = 'ook_guard=' + encodeURIComponent(deger || '') + '; HttpOnly; Path=/; Max-Age=' + Number(saniye || 0) + '; SameSite=Lax';
+  const proto = req.headers && (req.headers['x-forwarded-proto'] || '');
+  if (String(proto).split(',')[0].trim() === 'https') c += '; Secure';
+  res.appendHeader ? res.appendHeader('Set-Cookie', c) : res.setHeader('Set-Cookie', c);
+}
+function guvenlikCerezOku(req) {
+  return cerezOku(req).ook_guard || '';
+}
+function guvenlikCerezSil(res, req) { guvenlikCerezYaz(res, req, '', 0); }
+
 function jetonVer(res, req, kullanici) {
   const j = jwt.sign({ uid: kullanici.id }, process.env.JWT_SECRET || 'degistirin', { expiresIn: '30d' });
   cerezYaz(res, req, j, 30);
@@ -71,6 +155,181 @@ async function oturum(req) {
 }
 function rolAdiDB(r) {
   return r === 'ogretmen' ? 'Öğretmen' : (r === 'veli' ? 'Veli' : (r === 'admin' ? 'Yönetici' : 'Öğrenci'));
+}
+
+function guvenlikPepper() {
+  return process.env.SECURITY_PEPPER || process.env.JWT_SECRET || 'ook-guvenlik-degistirilmeli';
+}
+function sha256(v) {
+  return crypto.createHash('sha256').update(String(v)).digest('hex');
+}
+function ipOku(req) {
+  const xff = req.headers && req.headers['x-forwarded-for'];
+  if (xff) return String(xff).split(',')[0].trim();
+  return String((req.socket && req.socket.remoteAddress) || '0.0.0.0');
+}
+function ipHash(req) {
+  return sha256(ipOku(req) + '|' + guvenlikPepper());
+}
+function originGuvenliMi(req) {
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return true;
+  const site = req.headers && req.headers['sec-fetch-site'];
+  if (site === 'cross-site') return false;
+  const origin = req.headers && req.headers.origin;
+  if (!origin) return true;
+  try {
+    const allowed = process.env.ALLOWED_ORIGIN
+      ? new URL(process.env.ALLOWED_ORIGIN).host
+      : String((req.headers && req.headers.host) || '').split(',')[0].trim();
+    return new URL(origin).host === allowed;
+  } catch (e) { return false; }
+}
+async function rateLimit(client, req, islem, limit, dakika) {
+  const anahtar = ipHash(req);
+  const pencere = Math.floor(Date.now() / (dakika * 60 * 1000));
+  const r = await client.query(
+    `INSERT INTO guvenlik_hiz_sinir (anahtar_hash, islem, pencere, sayac)
+     VALUES ($1,$2,$3,1)
+     ON CONFLICT (anahtar_hash, islem, pencere)
+     DO UPDATE SET sayac = guvenlik_hiz_sinir.sayac + 1
+     RETURNING sayac`,
+    [anahtar, islem, pencere]
+  );
+  if (Math.random() < 0.015) {
+    client.query('DELETE FROM guvenlik_hiz_sinir WHERE pencere < $1', [pencere - 120]).catch(() => {});
+  }
+  return Number(r.rows[0].sayac) <= limit;
+}
+async function gatewayTekrarKontrol(client, req, rawGovde) {
+  const t = Number(rawGovde && rawGovde.t || 0);
+  const n = String(rawGovde && rawGovde.n || '');
+  if (!t || !n || Math.abs(Date.now() - t) > 2 * 60 * 1000) return false;
+  const imza = sha256(n + '|' + ipHash(req));
+  const r = await client.query(
+    `INSERT INTO guvenlik_nonce (nonce_hash, bitis) VALUES ($1, NOW() + INTERVAL '3 minutes')
+     ON CONFLICT (nonce_hash) DO NOTHING RETURNING nonce_hash`,
+    [imza]
+  );
+  if (Math.random() < 0.02) client.query('DELETE FROM guvenlik_nonce WHERE bitis < NOW()').catch(() => {});
+  return r.rows.length === 1;
+}
+function captchaCevapHash(cevap) {
+  return sha256(String(cevap || '').trim().toLocaleLowerCase('tr-TR') + '|' + guvenlikPepper());
+}
+function captchaTokenHash(token) { return sha256(String(token || '') + '|' + guvenlikPepper()); }
+function guvenlikTokenUret() { return crypto.randomBytes(32).toString('base64url'); }
+function captchaUret() {
+  const tip = crypto.randomInt(0, 3);
+  let soru = '', cevap = '';
+  if (tip === 0) {
+    const a = crypto.randomInt(3, 18), b = crypto.randomInt(2, 13);
+    soru = `${a} + ${b} = ?`; cevap = String(a + b);
+  } else if (tip === 1) {
+    const a = crypto.randomInt(2, 10), b = crypto.randomInt(2, 9);
+    soru = `${a} × ${b} = ?`; cevap = String(a * b);
+  } else {
+    const d = new Set();
+    while (d.size < 3) d.add(crypto.randomInt(10, 90));
+    const sayilar = [...d];
+    soru = `En büyük sayı hangisi?  ${sayilar.join('   •   ')}`;
+    cevap = String(Math.max(...sayilar));
+  }
+  const token = crypto.randomBytes(32).toString('base64url');
+  return { token, soru, cevap };
+}
+async function guvenlikGecisKontrol(client, req, islem, govde) {
+  const korunan = new Set(['kayit', 'giris', 'telefon-kayit', 'google-giris', 'kod-tekrar', 'sifre-degistir']);
+  if (!korunan.has(islem)) return { ok: true };
+  const token = String(guvenlikCerezOku(req) || '');
+  if (!token) return { ok: false, mesaj: 'Güvenlik doğrulaması gerekli.', kod: 'CAPTCHA_REQUIRED' };
+  const r = await client.query(
+    `UPDATE captcha_gecis
+       SET kullanim = kullanim + 1
+     WHERE token_hash = $1
+       AND ip_hash = $2
+       AND bitis > NOW()
+       AND kullanim < 25
+     RETURNING token_hash`,
+    [captchaTokenHash(token), ipHash(req)]
+  );
+  if (!r.rows.length) return { ok: false, mesaj: 'Güvenlik doğrulaması geçersiz veya süresi dolmuş.', kod: 'CAPTCHA_REQUIRED' };
+  return { ok: true };
+}
+
+// Sesli görüşme tablolarını deployment sonrası da otomatik hazırlar.
+// Böylece eski veritabanında /api/setup tekrar çalıştırılmamış olsa bile sesli arama
+// ilk kullanımda "relation does not exist" nedeniyle 500 vermez.
+let _sesliSchemaReady = null;
+async function sesliSemasiHazirla() {
+  if (_sesliSchemaReady) return _sesliSchemaReady;
+  _sesliSchemaReady = (async () => {
+    const p = pool();
+    await p.query(`CREATE TABLE IF NOT EXISTS sesli_arama (
+      id VARCHAR(64) PRIMARY KEY,
+      arayan_id INT NOT NULL,
+      aranan_id INT NOT NULL,
+      durum VARCHAR(16) NOT NULL DEFAULT 'caliyor',
+      teklif JSONB NULL,
+      yanit JSONB NULL,
+      olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      guncelleme TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await p.query(`CREATE INDEX IF NOT EXISTS idx_sesli_arama_aranan ON sesli_arama (aranan_id, durum, guncelleme DESC)`);
+    await p.query(`CREATE INDEX IF NOT EXISTS idx_sesli_arama_arayan ON sesli_arama (arayan_id, durum, guncelleme DESC)`);
+    await p.query(`CREATE TABLE IF NOT EXISTS sesli_sinyal (
+      id BIGSERIAL PRIMARY KEY,
+      arama_id VARCHAR(64) NOT NULL REFERENCES sesli_arama(id) ON DELETE CASCADE,
+      gonderen_id INT NOT NULL,
+      sinyal JSONB NOT NULL,
+      olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await p.query(`CREATE INDEX IF NOT EXISTS idx_sesli_sinyal_arama ON sesli_sinyal (arama_id, id)`);
+  })().catch((err) => {
+    _sesliSchemaReady = null;
+    throw err;
+  });
+  return _sesliSchemaReady;
+}
+
+// Güvenlik şeması: mevcut deployment'da /api/setup tekrar çalıştırılmamış olsa bile otomatik hazırlanır.
+let _guvenlikSchemaReady = null;
+async function guvenlikSemasiHazirla() {
+  if (_guvenlikSchemaReady) return _guvenlikSchemaReady;
+  _guvenlikSchemaReady = (async () => {
+    const p = pool();
+    await p.query(`CREATE TABLE IF NOT EXISTS captcha_zorluk (
+      token_hash CHAR(64) PRIMARY KEY,
+      soru VARCHAR(240) NOT NULL,
+      cevap_hash CHAR(64) NOT NULL,
+      ip_hash CHAR(64) NOT NULL,
+      deneme SMALLINT NOT NULL DEFAULT 0,
+      kullanildi BOOLEAN NOT NULL DEFAULT FALSE,
+      bitis TIMESTAMPTZ NOT NULL,
+      olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await p.query('CREATE INDEX IF NOT EXISTS idx_captcha_bitis ON captcha_zorluk (bitis)');
+    await p.query(`CREATE TABLE IF NOT EXISTS captcha_gecis (
+      token_hash CHAR(64) PRIMARY KEY,
+      ip_hash CHAR(64) NOT NULL,
+      bitis TIMESTAMPTZ NOT NULL,
+      kullanim INT NOT NULL DEFAULT 0,
+      olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await p.query('CREATE INDEX IF NOT EXISTS idx_captcha_gecis_bitis ON captcha_gecis (bitis)');
+    await p.query(`CREATE TABLE IF NOT EXISTS guvenlik_hiz_sinir (
+      anahtar_hash CHAR(64) NOT NULL,
+      islem VARCHAR(40) NOT NULL,
+      pencere BIGINT NOT NULL,
+      sayac INT NOT NULL DEFAULT 0,
+      PRIMARY KEY (anahtar_hash, islem, pencere)
+    )`);
+    await p.query('CREATE INDEX IF NOT EXISTS idx_guvenlik_hiz_pencere ON guvenlik_hiz_sinir (pencere)');
+    await p.query(`CREATE TABLE IF NOT EXISTS guvenlik_nonce (
+      nonce_hash CHAR(64) PRIMARY KEY, bitis TIMESTAMPTZ NOT NULL
+    )`);
+    await p.query('CREATE INDEX IF NOT EXISTS idx_guvenlik_nonce_bitis ON guvenlik_nonce (bitis)');
+  })().catch((err) => { _guvenlikSchemaReady = null; throw err; });
+  return _guvenlikSchemaReady;
 }
 
 // ---------- telefon (NetGSM SMS) ----------
@@ -143,10 +402,18 @@ async function dogrulamaSmsGonder(client, tel, ad) {
 
 // ---------- yönlendirici ----------
 module.exports = async (req, res) => {
-  const islem = (req.query && req.query.islem) || '';
-  const govde = (req.method === 'POST' || req.method === 'PUT') ? await govdeOku(req) : {};
-  const sorgu = req.query || {};
+  const yol = String((req && req.url) || '').split('?')[0];
+  const gateway = !yol || yol.endsWith('/api/gateway') || yol.endsWith('/api/gateway/');
+  if (!gateway) return hata(res, 'Bu API uç noktası devre dışı.', 404, 'API_DISABLED');
+  if (req.method !== 'POST') return hata(res, 'Bu uç nokta yalnızca POST kabul eder.', 405, 'METHOD_NOT_ALLOWED');
+  const rawGovde = await govdeOku(req);
+  const islem = KOD_ISLEMLERI[String(rawGovde && rawGovde.a || '')] || '';
+  const govde = (rawGovde && rawGovde.d && typeof rawGovde.d === 'object') ? rawGovde.d : {};
+  const sorgu = {};
   const g = (ad, v) => girdi(govde, sorgu, ad, v);
+
+  if (!originGuvenliMi(req)) return hata(res, 'Geçersiz istek kaynağı.', 403, 'BAD_ORIGIN');
+  if (!islem) return hata(res, 'Geçersiz güvenlik isteği.', 404, 'BAD_ACTION');
 
   if (islem === 'ping') return gonder(res, 200, { ok: true, zaman: new Date().toISOString() });
 
@@ -155,7 +422,80 @@ module.exports = async (req, res) => {
   catch (e) { return hata(res, 'Veritabanına bağlanılamadı (DATABASE_URL).', 500); }
 
   try {
+    await guvenlikSemasiHazirla();
+    if (gateway && !await gatewayTekrarKontrol(client, req, rawGovde)) return hata(res, 'Geçersiz veya tekrarlanan istek.', 409, 'REQUEST_REJECTED');
+    const globalLimit = await rateLimit(client, req, 'genel', 240, 1);
+    if (!globalLimit) return hata(res, 'Çok fazla istek gönderildi. Biraz sonra tekrar deneyin.', 429, 'RATE_LIMIT');
+
+    const ozelLimit = {
+      'captcha-yeni': [12, 10],
+      'captcha-dogrula': [15, 10],
+      'dogrula': [10, 15],
+      'giris': [10, 10],
+      'kayit': [5, 30],
+      'telefon-kayit': [5, 30],
+      'google-giris': [10, 10],
+      'kod-tekrar': [4, 15],
+      'sifre-degistir': [5, 15],
+      'mesaj-gonder': [30, 1],
+      'soru-ekle': [8, 10],
+      'yanit-ekle': [20, 10],
+      'sesli-arama-baslat': [8, 5],
+      'sesli-arama-teklif': [40, 1],
+      'sesli-arama-yanit': [40, 1],
+      'sesli-arama-sinyal': [90, 1],
+      'sikayet-et': [10, 10]
+    };
+    if (ozelLimit[islem]) {
+      const [limit, dakika] = ozelLimit[islem];
+      if (!await rateLimit(client, req, islem, limit, dakika)) return hata(res, 'Bu işlem için kısa sürede çok fazla istek yapıldı. Biraz sonra tekrar deneyin.', 429, 'RATE_LIMIT');
+    }
+
+    const guvenlik = await guvenlikGecisKontrol(client, req, islem, govde);
+    if (!guvenlik.ok) return hata(res, guvenlik.mesaj, 428, guvenlik.kod);
+
     switch (islem) {
+      case 'captcha-yeni': {
+        await client.query('DELETE FROM captcha_zorluk WHERE bitis < NOW()');
+        await client.query('DELETE FROM captcha_gecis WHERE bitis < NOW()');
+        const c = captchaUret();
+        const bitis = new Date(Date.now() + 3 * 60 * 1000).toISOString();
+        await client.query(
+          `INSERT INTO captcha_zorluk (token_hash, soru, cevap_hash, ip_hash, bitis) VALUES ($1,$2,$3,$4,$5)`,
+          [captchaTokenHash(c.token), c.soru, captchaCevapHash(c.cevap), ipHash(req), bitis]
+        );
+        return gonder(res, 200, { ok: true, token: c.token, soru: c.soru, bitis: new Date(bitis).getTime() });
+      }
+
+      case 'captcha-dogrula': {
+        const token = String(g('captcha_token', ''));
+        const cevap = String(g('cevap', '')).trim();
+        if (!token || !cevap) return hata(res, 'CAPTCHA cevabı gerekli.', 400, 'CAPTCHA_REQUIRED');
+        const r = await client.query(
+          `SELECT token_hash, cevap_hash, deneme FROM captcha_zorluk
+           WHERE token_hash = $1 AND ip_hash = $2 AND bitis > NOW() AND kullanildi = FALSE`,
+          [captchaTokenHash(token), ipHash(req)]
+        );
+        if (!r.rows.length) return hata(res, 'CAPTCHA bulunamadı veya süresi doldu.', 400, 'CAPTCHA_EXPIRED');
+        const row = r.rows[0];
+        const eslesiyor = crypto.timingSafeEqual(Buffer.from(row.cevap_hash), Buffer.from(captchaCevapHash(cevap)));
+        if (!eslesiyor) {
+          const yeni = Number(row.deneme) + 1;
+          await client.query('UPDATE captcha_zorluk SET deneme = $1, kullanildi = $2 WHERE token_hash = $3', [yeni, yeni >= 5, captchaTokenHash(token)]);
+          return hata(res, yeni >= 5 ? 'CAPTCHA deneme hakkı bitti. Yenisi oluşturun.' : 'CAPTCHA cevabı yanlış.', 400, 'CAPTCHA_WRONG');
+        }
+        await client.query('UPDATE captcha_zorluk SET deneme = deneme + 1, kullanildi = TRUE WHERE token_hash = $1', [captchaTokenHash(token)]);
+        const gecis = guvenlikTokenUret();
+        const gecisBitis = new Date(Date.now() + 20 * 60 * 1000).toISOString();
+        await client.query(
+          `INSERT INTO captcha_gecis (token_hash, ip_hash, bitis, kullanim) VALUES ($1,$2,$3,0)
+           ON CONFLICT (token_hash) DO UPDATE SET ip_hash = EXCLUDED.ip_hash, bitis = EXCLUDED.bitis, kullanim = 0`,
+          [captchaTokenHash(gecis), ipHash(req), gecisBitis]
+        );
+        guvenlikCerezYaz(res, req, gecis, 20 * 60);
+        return gonder(res, 200, { ok: true, bitis: new Date(gecisBitis).getTime() });
+      }
+
       case 'oturum': {
         const k = await oturum(req);
         return gonder(res, 200, { ok: true, kullanici: k });
@@ -292,6 +632,7 @@ module.exports = async (req, res) => {
 
       case 'cikis':
         jetonSil(res, req);
+        guvenlikCerezSil(res, req);
         return gonder(res, 200, { ok: true });
 
       case 'sifre-degistir': {
@@ -535,6 +876,7 @@ module.exports = async (req, res) => {
         return gonder(res, 200, { ok: true, ice_servers: ice });
       }
       case 'sesli-arama-baslat': {
+        await sesliSemasiHazirla();
         const k = await oturum(req);
         if (!k) return hata(res, 'Bu işlem için giriş yapmalısınız.', 401);
         const karsi = Number(g('karsi_id', 0));
@@ -548,6 +890,7 @@ module.exports = async (req, res) => {
         return gonder(res, 200, { ok: true, arama_id: id, karsi_ad: u.ad });
       }
       case 'sesli-gelen-arama': {
+        await sesliSemasiHazirla();
         await client.query("DELETE FROM sesli_arama WHERE guncelleme < NOW() - INTERVAL '1 day'").catch(() => {});
         const k = await oturum(req);
         if (!k) return hata(res, 'Bu işlem için giriş yapmalısınız.', 401);
@@ -555,6 +898,7 @@ module.exports = async (req, res) => {
         return gonder(res, 200, { ok: true, arama: l.rows[0] || null });
       }
       case 'sesli-arama-teklif': {
+        await sesliSemasiHazirla();
         const k = await oturum(req); if (!k) return hata(res, 'Giriş yapmalısınız.', 401);
         const id = String(g('arama_id','')); const teklif = g('teklif', null);
         const a = (await client.query('SELECT * FROM sesli_arama WHERE id=$1 AND arayan_id=$2', [id, k.id])).rows[0];
@@ -563,6 +907,7 @@ module.exports = async (req, res) => {
         return gonder(res, 200, { ok: true });
       }
       case 'sesli-arama-yanit': {
+        await sesliSemasiHazirla();
         const k = await oturum(req); if (!k) return hata(res, 'Giriş yapmalısınız.', 401);
         const id = String(g('arama_id','')); const yanit = g('yanit', null);
         const a = (await client.query('SELECT * FROM sesli_arama WHERE id=$1 AND aranan_id=$2', [id, k.id])).rows[0];
@@ -571,6 +916,7 @@ module.exports = async (req, res) => {
         return gonder(res, 200, { ok: true });
       }
       case 'sesli-arama-durum-guncelle': {
+        await sesliSemasiHazirla();
         const k = await oturum(req); if (!k) return hata(res, 'Giriş yapmalısınız.', 401);
         const id = String(g('arama_id','')); const durum = String(g('durum',''));
         if (!['baglaniyor','bagli'].includes(durum)) return hata(res, 'Geçersiz durum.');
@@ -580,6 +926,7 @@ module.exports = async (req, res) => {
         return gonder(res, 200, { ok: true });
       }
       case 'sesli-arama-sinyal': {
+        await sesliSemasiHazirla();
         const k = await oturum(req); if (!k) return hata(res, 'Giriş yapmalısınız.', 401);
         const id = String(g('arama_id','')); const sinyal = g('sinyal', null);
         const a = (await client.query('SELECT id FROM sesli_arama WHERE id=$1 AND (arayan_id=$2 OR aranan_id=$2)', [id, k.id])).rows[0];
@@ -588,6 +935,7 @@ module.exports = async (req, res) => {
         return gonder(res, 200, { ok: true });
       }
       case 'sesli-arama-kapat': {
+        await sesliSemasiHazirla();
         const k = await oturum(req); if (!k) return hata(res, 'Giriş yapmalısınız.', 401);
         const id = String(g('arama_id',''));
         const a = (await client.query('SELECT id FROM sesli_arama WHERE id=$1 AND (arayan_id=$2 OR aranan_id=$2)', [id, k.id])).rows[0];
@@ -596,6 +944,7 @@ module.exports = async (req, res) => {
         return gonder(res, 200, { ok: true });
       }
       case 'sesli-arama-durum': {
+        await sesliSemasiHazirla();
         const k = await oturum(req); if (!k) return hata(res, 'Giriş yapmalısınız.', 401);
         const id = String(g('arama_id','')); const sonra = Number(g('sonra', 0));
         const a = (await client.query('SELECT id, arayan_id, aranan_id, durum, teklif, yanit, guncelleme FROM sesli_arama WHERE id=$1 AND (arayan_id=$2 OR aranan_id=$2)', [id,k.id])).rows[0];
@@ -769,6 +1118,13 @@ module.exports = async (req, res) => {
         return hata(res, 'Bilinmeyen işlem.', 404);
     }
   } catch (e) {
+    console.error('[API]', islem, e);
+    if (e && (e.code === '42P01' || e.code === '42703')) {
+      if (String(islem).startsWith('sesli-')) return hata(res, 'Sesli görüşme veritabanı kurulumu eksik. /api/setup adresini bir kez açıp kurulumu tamamlayın.', 500);
+      if (islem === 'captcha-yeni' || islem === 'captcha-dogrula') return hata(res, 'Güvenlik tabloları hazır değil. /api/setup adresini bir kez açıp kurulumu tamamlayın.', 500);
+    }
+    if (e && e.code === '28P01') return hata(res, 'Veritabanı kimlik doğrulaması başarısız. DATABASE_URL değerini kontrol edin.', 500);
+    if (e && (e.code === 'ENOTFOUND' || e.code === 'ECONNREFUSED' || e.code === 'ETIMEDOUT')) return hata(res, 'Veritabanı bağlantısı kurulamadı. Vercel DATABASE_URL ayarını kontrol edin.', 500);
     return hata(res, 'Sunucu hatası. Lütfen daha sonra tekrar deneyin.', 500);
   }
 };

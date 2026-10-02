@@ -135,6 +135,9 @@ ADIM 4 - KURULUM SİHİRBAZI
   - "Kurulum tamamlandı" sonrası bu adres bir daha çalışmaz.
 
 ADIM 5 - KONTROL
+  - Sesli görüşme modülü, güncel sürümde eksik sesli tablolarını ilk kullanımda
+    otomatik oluşturur. Bu yüzden eski veritabanında /api/setup tekrar çalıştırılmamış
+    olsa bile sesli arama tabloları oluşturulabilir.
   - Ana sayfanın üst şeridinde "Ortak veritabanına bağlı" yazmalı.
   - Yönetici girişi + Yönetim Paneli > Test E-postası ile maili ölçün.
   - Özel alan adınız varsa: Vercel > Project > Settings > Domains.
@@ -148,3 +151,11 @@ ADIM 5 - KONTROL
   - Eski MySQL verileri çöken hostingde kaldı; site sıfırdan başlar.
     Üyeler yeniden kayıt olur, roller Yönetim Paneli'nden atanır.
   - Sunucuya ulaşılamazsa site otomatik "Yerel mod"a düşer (eski davranış).
+
+GÜVENLİK GÜNCELLEMESİ
+---------------------
+- Üretim API çağrıları /api/gateway üzerinden gider; eski /api?islem= yolu kapalıdır.
+- DB tabanlı özel CAPTCHA ve kısa ömürlü HttpOnly güvenlik geçişi kullanılır.
+- CAPTCHA için DB tabloları ilk API çağrısında da otomatik hazırlanır; yine de /api/setup çalıştırmanız önerilir.
+- Vercel'de SECURITY_PEPPER için ayrı, güçlü bir secret tanımlayın. Örnek: openssl rand -base64 48
+- ALLOWED_ORIGIN isteğe bağlıdır; öneri: https://ortaokulluyuz.dpdns.org

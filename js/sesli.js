@@ -141,7 +141,9 @@ const Sesli = {
         this._iceSunuculari = j.ice_servers;
         return this._iceSunuculari;
       }
-    } catch (e) {}
+    } catch (e) {
+      this.sonHata = e && e.message ? e.message : 'Sesli görüşme sunucu ayarları alınamadı.';
+    }
     this._iceSunuculari = varsayilan;
     return this._iceSunuculari;
   },

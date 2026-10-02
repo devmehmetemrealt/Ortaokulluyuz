@@ -176,6 +176,7 @@ const Layout = {
         <input id="gSifre" type="password" required class="girdi auth-girdi" placeholder="••••••" />
         <button type="button" class="sifre-goz" onclick="sifreGoster('gSifre',this)" title="Göster/Gizle"><svg class="ikon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
       </div>
+      <div id="girisCaptcha"></div>
       <button class="btn btn-birincil w-full justify-center auth-btn">Giriş Yap</button>
       <div id="googleBtnSar" class="hidden">
         <div class="ayrac"><span>veya</span></div>
@@ -204,6 +205,7 @@ const Layout = {
         <input id="kSifre" type="password" required class="girdi auth-girdi" placeholder="Güçlü bir şifre seçin" />
         <button type="button" class="sifre-goz" onclick="sifreGoster('kSifre',this)" title="Göster/Gizle"><svg class="ikon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
       </div>
+      <div id="kayitCaptcha"></div>
       <button class="btn btn-birincil w-full justify-center auth-btn">Kayıt Ol</button>
       <p class="auth-not">E-postanıza veya telefonunuza <b>doğrulama kodu</b> gönderilecek. Hesabınız <b>öğrenci</b> olarak açılır; öğretmen ve veli yetkisi yönetici tarafından tanımlanır.</p>
       <button type="button" class="auth-vazgec" onclick="document.getElementById('authModal').classList.add('hidden')">Vazgeç</button>

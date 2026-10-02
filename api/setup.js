@@ -71,6 +71,23 @@ const DDL = [
     olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`,
   `CREATE INDEX IF NOT EXISTS idx_paylasim_sinif_ders ON paylasimlar (sinif, ders)`,
+  `CREATE TABLE IF NOT EXISTS captcha_zorluk (
+    token_hash CHAR(64) PRIMARY KEY, soru VARCHAR(240) NOT NULL, cevap_hash CHAR(64) NOT NULL, ip_hash CHAR(64) NOT NULL,
+    deneme SMALLINT NOT NULL DEFAULT 0, kullanildi BOOLEAN NOT NULL DEFAULT FALSE, bitis TIMESTAMPTZ NOT NULL, olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_captcha_bitis ON captcha_zorluk (bitis)`,
+  `CREATE TABLE IF NOT EXISTS captcha_gecis (
+    token_hash CHAR(64) PRIMARY KEY, ip_hash CHAR(64) NOT NULL, bitis TIMESTAMPTZ NOT NULL, kullanim INT NOT NULL DEFAULT 0, olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_captcha_gecis_bitis ON captcha_gecis (bitis)`,
+  `CREATE TABLE IF NOT EXISTS guvenlik_hiz_sinir (
+    anahtar_hash CHAR(64) NOT NULL, islem VARCHAR(40) NOT NULL, pencere BIGINT NOT NULL, sayac INT NOT NULL DEFAULT 0, PRIMARY KEY (anahtar_hash, islem, pencere)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_guvenlik_hiz_pencere ON guvenlik_hiz_sinir (pencere)`,
+  `CREATE TABLE IF NOT EXISTS guvenlik_nonce (
+    nonce_hash CHAR(64) PRIMARY KEY, bitis TIMESTAMPTZ NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_guvenlik_nonce_bitis ON guvenlik_nonce (bitis)`,
   `CREATE TABLE IF NOT EXISTS ayarlar (anahtar TEXT PRIMARY KEY, deger TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS kullanici_tercih (
     kullanici_id INT NOT NULL, sinif SMALLINT NOT NULL, ders VARCHAR(32) NOT NULL DEFAULT '', kitap_id VARCHAR(32) NOT NULL DEFAULT '',

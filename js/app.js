@@ -452,6 +452,7 @@ const SohbetCanli = {
 function authModal(mod = "giris") {
   document.getElementById("authModal").classList.remove("hidden");
   authSekme(mod);
+  if (Auth.sunucuModu() && window.Guvenlik) Guvenlik.hazirla(mod === 'giris' ? 'girisCaptcha' : 'kayitCaptcha');
 }
 function authSekme(mod) {
   const giris = mod === "giris";
@@ -460,6 +461,7 @@ function authSekme(mod) {
   document.getElementById("dogrulamaForm").classList.add("hidden");
   document.getElementById("sekmeGiris").className = "auth-sekme" + (giris ? " aktif" : "");
   document.getElementById("sekmeKayit").className = "auth-sekme" + (!giris ? " aktif" : "");
+  if (Auth.sunucuModu() && window.Guvenlik) Guvenlik.hazirla(giris ? 'girisCaptcha' : 'kayitCaptcha');
 }
 function sifreGoster(id, btn) {
   const i = document.getElementById(id);
@@ -469,6 +471,8 @@ function sifreGoster(id, btn) {
 }
 async function girisYap(e) {
   e.preventDefault();
+  const güvenlik = (Auth.sunucuModu() && window.Guvenlik) ? await Guvenlik.tokenIste('girisCaptcha') : true;
+  if (!güvenlik) return toast('Önce güvenlik doğrulamasını tamamlayın.');
   const ep = document.getElementById("gEposta").value.trim();
   const r = await Auth.giris(ep, document.getElementById("gSifre").value);
   if (r.hata) {
@@ -481,6 +485,8 @@ async function girisYap(e) {
 }
 async function kayitYap(e) {
   e.preventDefault();
+  const güvenlik = (Auth.sunucuModu() && window.Guvenlik) ? await Guvenlik.tokenIste('kayitCaptcha') : true;
+  if (!güvenlik) return toast('Önce güvenlik doğrulamasını tamamlayın.');
   const ad = document.getElementById("kAd").value.trim();
   const sf = document.getElementById("kSifre").value;
   if (ad.length < 3 || sf.length < 4) return toast("Ad ve şifreyi kontrol edin (şifre en az 4 karakter).");
@@ -547,6 +553,10 @@ function googleHazirla(clientId) {
 }
 async function googleCevap(cevap) {
   if (!cevap || !cevap.credential) { toast("Google yanıtı alınamadı."); return; }
+  if (Auth.sunucuModu() && window.Guvenlik) {
+    const güvenlik = await Guvenlik.tokenIste('girisCaptcha');
+    if (!güvenlik) return toast('Önce güvenlik doğrulamasını tamamlayın.');
+  }
   toast("Google doğrulanıyor…");
   let r;
   try { r = await Auth.googleGiris(cevap.credential); }
