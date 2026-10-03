@@ -631,37 +631,66 @@ function ustBarGuncelle() {
   const alan = document.getElementById("girisAlani");
   if (!alan) return;
   const k = Auth.mevcut();
-  alan.innerHTML = k
-    ? `<span class="text-[13px] text-slate-600">${ikon("kullanici", 15)} <b>${kac(k.ad)}</b> <span class="etiket ml-1">${rolAdi(k.rol)}</span></span>
-       ${k.rol === "admin" ? `<a class="btn btn-birincil btn-kucuk" href="yonetim.html">Yönetim</a>` : ""}
-       <a class="btn btn-ikincil btn-kucuk" href="profil.html">Profilim</a>
-       <button class="btn btn-ikincil btn-kucuk" onclick="cikisYap()">Çıkış</button>`
-    : `<button class="btn btn-ikincil btn-kucuk" onclick="authModal('giris')">Giriş Yap</button>
-       <button class="btn btn-birincil btn-kucuk" onclick="authModal('kayit')">Kayıt Ol</button>`;
+  if (k) {
+    const ad = kac(k.ad || "Kullanıcı");
+    const bas = kac(String(k.ad || "K").trim().split(/\s+/).slice(0,2).map(x => x[0] || "").join("").toUpperCase() || "K");
+    alan.innerHTML = `<details class="kullanici-menu">
+      <summary class="kullanici-menu-ozet" aria-label="Kullanıcı menüsü">
+        <span class="kullanici-avatar">${bas}</span>
+        <span class="kullanici-metin"><b>${ad}</b><small>${k.rol === "admin" ? "Yönetici" : rolAdi(k.rol)}</small></span>
+        <span class="kullanici-chevron" aria-hidden="true">⌄</span>
+      </summary>
+      <div class="kullanici-panel">
+        <div class="kullanici-panel-ust">
+          <div class="kullanici-panel-avatar">${bas}</div>
+          <div><strong>${ad}</strong><span>${k.eposta ? kac(k.eposta) : rolAdi(k.rol)}</span></div>
+        </div>
+        <div class="kullanici-menu-linkleri">
+          <a href="profil.html">${ikon("kullanici",15)}<span>Profilim</span><em>→</em></a>
+          ${k.rol === "admin" ? `<a class="yonetici-link" href="yonetim.html">${ikon("ayar",15)}<span>Yönetim paneli</span><em>→</em></a>` : ""}
+          <button type="button" onclick="cikisYap()">${ikon("cikis",15)}<span>Çıkış yap</span><em>↪</em></button>
+        </div>
+        <div class="kullanici-panel-alt">Oturum güvenli çerez ile korunuyor.</div>
+      </div>
+    </details>`;
+  } else {
+    alan.innerHTML = `<div class="misafir-butonlari"><button class="btn btn-ikincil btn-kucuk" onclick="authModal('giris')">Giriş Yap</button><button class="btn btn-birincil btn-kucuk" onclick="authModal('kayit')">Kayıt Ol</button></div>`;
+  }
 }
+
 async function profilCiz() {
   const k = Auth.mevcut();
   const alan = document.getElementById("profilIcerik");
   if (!alan) return;
-  if (!k) { alan.innerHTML = `<p class="text-[13.5px] text-slate-500">Profil özelliklerinden yararlanmak için <button class="text-blue-800 font-semibold" onclick="authModal('giris')">giriş yapın</button>. Favori kitaplar, sayfa notları ve forum hareketleriniz burada listelenir.</p>`; return; }
-  const favs = Auth.favoriler().map(id => KITAPLAR.find(x => x.id === id)).filter(Boolean);
-  let sorular = (Forum._sonListe || []).filter(x => x.yazar.startsWith(k.ad));
-  if (!sorular.length && Auth.sunucuModu()) {
-    try { const l = await Forum.liste({}); sorular = l.filter(x => x.yazar.startsWith(k.ad)); } catch (e) {}
+  if (!k) {
+    alan.innerHTML = `<div class="profil-misafir"><div class="profil-misafir-ikon">${ikon("kullanici",26)}</div><div><span class="profil-kicker">KİŞİSEL ÇALIŞMA ALANI</span><h3>Profil alanına hoş geldin</h3><p>Favorilerini, forum sorularını, kişisel önerilerini ve okuma notlarını tek yerde görmek için hesabına giriş yap.</p><button class="btn btn-birincil btn-kucuk" onclick="authModal('giris')">Giriş Yap</button></div></div>`;
+    return;
   }
-  let notSayisi = 0; for (let i = 0; i < localStorage.length; i++) { const anahtar = localStorage.key(i); if (anahtar && anahtar.startsWith("ook_not_")) notSayisi++; }
+  const favs = Auth.favoriler().map(id => KITAPLAR.find(x => x.id === id)).filter(Boolean);
+  let sorular = (Forum._sonListe || []).filter(x => x.yazar && x.yazar.startsWith(k.ad));
+  if (!sorular.length && Auth.sunucuModu()) {
+    try { const l = await Forum.liste({}); sorular = l.filter(x => x.yazar && x.yazar.startsWith(k.ad)); } catch (e) {}
+  }
+  let notSayisi = 0;
+  for (let i = 0; i < localStorage.length; i++) { const a = localStorage.key(i); if (a && a.startsWith("ook_not_")) notSayisi++; }
+  const oz = (typeof Tercih !== "undefined" && Tercih.ozet) ? Tercih.ozet() : {sinif:{},ders:{},kitap:{}};
+  const siniflar = [5,6,7,8].map(s => ({sinif:s, puan:Number(oz.sinif[String(s)] || 0)})).sort((a,b)=>b.puan-a.puan);
+  const toplamEtki = siniflar.reduce((a,x)=>a+x.puan,0);
+  const odakSinif = (typeof Tercih !== "undefined" && Tercih.tercihSinif) ? Tercih.tercihSinif() : null;
+  const bas = kac(String(k.ad || "K").trim().split(/\s+/).slice(0,2).map(x=>x[0]||"").join("").toUpperCase() || "K");
+  const sinifKartlari = siniflar.map(x => {
+    const yuzde = toplamEtki ? Math.max(6, Math.round((x.puan/toplamEtki)*100)) : 0;
+    return `<div class="profil-odak-satir"><div class="profil-odak-bas"><span>${x.sinif}. Sınıf</span><b>${yuzde}%</b></div><div class="profil-odak-bar"><span style="width:${yuzde}%"></span></div></div>`;
+  }).join("");
   alan.innerHTML = `
-    <div class="grid md:grid-cols-3 gap-3">
-      <div class="border border-slate-200 rounded-lg p-3"><div class="font-bold text-[13px] text-slate-700 profil-ico">${ikonYildiz(true, 14)} Favori Kitaplar (${favs.length})</div>
-        <div class="mt-2 space-y-1 text-[13px]">${favs.map(f => `<button class="text-blue-800 hover:underline" onclick="Reader.ac('${f.id}')">${f.baslik}</button>`).join("") || `<span class="text-slate-400">Henüz favori yok.</span>`}</div></div>
-      <div class="border border-slate-200 rounded-lg p-3"><div class="font-bold text-[13px] text-slate-700 profil-ico">${ikon("kalem", 14)} Kaydedilen Sayfa Notları (${notSayisi})</div>
-        <p class="text-[12.5px] text-slate-500 mt-1">Z-Kitap'ta kalemle yazdıklarınız bu cihazda saklanır. Okuyucuda kaldığınız sayfayı açtığınızda notlarınız geri yüklenir.</p>
-        <div class="mt-2 border-t pt-2"><div class="font-bold text-[13px] text-slate-700">Şifre Değiştir</div>
-        <div class="flex gap-2 mt-1"><input id="yeniSifre" type="password" class="girdi" placeholder="Yeni şifre (en az 6 karakter)" /><button class="btn btn-ikincil btn-kucuk" onclick="parolaGuncelle()">Kaydet</button></div></div></div>
-      <div class="border border-slate-200 rounded-lg p-3"><div class="font-bold text-[13px] text-slate-700 profil-ico">${ikon("yorum", 14)} Sorularım (${sorular.length})</div>
-        <div class="mt-2 space-y-1 text-[13px]">${sorular.map(s2 => `<button class="text-blue-800 hover:underline" onclick="soruDetay('${s2.id}')">${s2.baslik}</button>`).join("") || `<span class="text-slate-400">Henüz soru sormadınız.</span>`}</div></div>
-    </div>`;
+    <div class="profil-hero-card"><div class="profil-hero-glow"></div><div class="profil-avatar">${bas}</div><div class="profil-hero-copy"><span class="profil-kicker">KİŞİSEL ÇALIŞMA ALANI</span><h2>${kac(k.ad || "Kullanıcı")}</h2><p>${kac(rolAdi(k.rol))}${k.olusturma || k.tarih ? " · " + tarihKisa(k.olusturma || k.tarih) + " tarihinden beri" : ""}</p></div><div class="profil-hero-actions"><a class="btn btn-ikincil btn-kucuk" href="kitaplar.html">Kitaplara git</a><a class="btn btn-birincil btn-kucuk" href="forum.html">Foruma git</a></div></div>
+    <div class="profil-metrik-grid"><div class="profil-metrik"><div class="profil-metrik-ikon pembe">${ikonYildiz(true,18)}</div><div><strong>${favs.length}</strong><span>Favori kitap</span></div></div><div class="profil-metrik"><div class="profil-metrik-ikon mavi">${ikon("yorum",18)}</div><div><strong>${sorular.length}</strong><span>Forum sorusu</span></div></div><div class="profil-metrik"><div class="profil-metrik-ikon turuncu">${ikon("kalem",18)}</div><div><strong>${notSayisi}</strong><span>Sayfa notu</span></div></div><div class="profil-metrik"><div class="profil-metrik-ikon mor">${ikon("kitap",18)}</div><div><strong>${odakSinif ? odakSinif + ". sınıf" : "Genel"}</strong><span>Çalışma odağı</span></div></div></div>
+    <div class="profil-iki-kolon"><section class="profil-panel"><div class="profil-panel-ust"><div><span class="profil-panel-kicker">KÜTÜPHANE</span><h3>Favori kitapların</h3></div><span class="profil-panel-sayi">${favs.length}</span></div><div class="profil-kitap-listesi">${favs.slice(0,6).map(f => `<button class="profil-kitap-oge" onclick="Reader.ac('${f.id}')"><span class="profil-kitap-kapak"><img src="${f.kapak || f.gorsel || ''}" alt="" loading="lazy"></span><span class="profil-kitap-bilgi"><b>${kac(f.baslik)}</b><small>${kac(dersAdi(f.ders,f.sinif) || "Ders kitabı")} · ${f.sinif}. sınıf</small></span><span class="profil-kitap-ok">→</span></button>`).join("") || `<div class="profil-bos"><strong>Henüz favori kitabın yok.</strong><span>Beğendiğin kitapları ⭐ ile işaretlediğinde burada görünecek.</span><a href="kitaplar.html">Kitaplara göz at →</a></div>`}</div></section>
+    <section class="profil-panel profil-odak"><div class="profil-panel-ust"><div><span class="profil-panel-kicker">KİŞİSELLEŞTİRME</span><h3>Çalışma odağın</h3></div><span class="profil-panel-sayi">${odakSinif ? odakSinif + ". sınıf" : "Yeni"}</span></div><p class="profil-panel-aciklama">Gezdiğin sınıf ve dersler önerilerini etkiliyor. Aşağıdaki dağılım son etkileşimlerinin özetidir.</p>${sinifKartlari || `<div class="profil-bos"><span>Henüz yeterli veri oluşmadı.</span><a href="kitaplar.html">Bir sınıf seç →</a></div>`}</section></div>
+    <div class="profil-iki-kolon"><section class="profil-panel"><div class="profil-panel-ust"><div><span class="profil-panel-kicker">FORUM</span><h3>Son soruların</h3></div><a class="profil-panel-link" href="forum.html">Tümünü gör →</a></div><div class="profil-soru-listesi">${sorular.slice(0,5).map(s2 => `<button class="profil-soru-oge" onclick="soruDetay('${s2.id}')"><span class="profil-soru-num">?</span><span><b>${kac(s2.baslik)}</b><small>${kac(s2.ders || "Forum")}</small></span><em>→</em></button>`).join("") || `<div class="profil-bos"><strong>Henüz forum sorusu yok.</strong><span>Takıldığın yeri paylaş, yanıtları profilinden takip et.</span><a href="forum.html">Forumda soru sor →</a></div>`}</div></section>
+    <section class="profil-panel profil-guvenlik"><div class="profil-panel-ust"><div><span class="profil-panel-kicker">HESAP</span><h3>Hesap güvenliği</h3></div><span class="guvenlik-durum">${ikon("tik",11)} Aktif</span></div><p class="profil-panel-aciklama">Şifreni güncel tut. Oturum güvenliği ve doğrulama işlemleri sunucu tarafında korunur.</p><div class="profil-sifre-satir"><div><strong>Şifre değiştir</strong><span>Yeni şifre en az 6 karakter olmalı.</span></div><div class="profil-sifre-form"><input id="yeniSifre" type="password" class="girdi" placeholder="Yeni şifre" autocomplete="new-password" /><button class="btn btn-birincil btn-kucuk" onclick="parolaGuncelle()">Güncelle</button></div></div></section></div>`;
 }
+
 async function parolaGuncelle() {
   const r = await Auth.parolaDegistir(document.getElementById("yeniSifre").value);
   toast(r.ok ? "Şifreniz güncellendi." : r.hata);
@@ -698,48 +727,44 @@ async function adminCiz() {
   } catch (e) {}
   const soruSayisi = ist.soru, yanitSayisi = ist.yanit;
   document.getElementById("yonetimIcerik").innerHTML = `
-    <div class="grid md:grid-cols-4 gap-3 mb-4">
-      <div class="yonetim-istatistik"><div class="yonetim-sayi">${uyeler.length}</div><div class="yonetim-etiket">Kayıtlı kullanıcı</div></div>
-      <div class="yonetim-istatistik"><div class="yonetim-sayi">${uyeler.filter(u => u.rol === "ogretmen").length}</div><div class="yonetim-etiket">Öğretmen</div></div>
-      <div class="yonetim-istatistik"><div class="yonetim-sayi">${soruSayisi}</div><div class="yonetim-etiket">Forum sorusu</div></div>
-      <div class="yonetim-istatistik"><div class="yonetim-sayi">${yanitSayisi}</div><div class="yonetim-etiket">Forum yanıtı</div></div>
+    <div class="yonetim-hero">
+      <div class="yonetim-hero-dekor"></div>
+      <div><span class="yonetim-kicker">YÖNETİCİ ÇALIŞMA ALANI</span><h2>Platformu buradan yönet</h2><p>Kullanıcıları, forum hareketlerini, mesaj denetimini ve bildirimleri tek ekrandan takip et.</p></div>
+      <div class="yonetim-hero-actions"><button class="btn btn-ikincil btn-kucuk" onclick="adminCiz()">Yenile</button><a class="btn btn-birincil btn-kucuk" href="forum.html">Forumu aç</a></div>
     </div>
-    <div class="kart-baslik">Kullanıcılar ve Rol Atama</div>
-    <div class="p-3 overflow-auto"><table class="tablo">
+    <div class="yonetim-sistem-grid">
+      <div class="yonetim-sistem-kart"><span class="yonetim-sistem-ikon yesil">${ikon("tik",17)}</span><div><b>${Auth.sunucuModu() ? "Ortak veritabanı" : "Yerel mod"}</b><small>${Auth.sunucuModu() ? "PostgreSQL bağlantısı aktif" : "Sunucu bağlantısı kapalı"}</small></div></div>
+      <div class="yonetim-sistem-kart"><span class="yonetim-sistem-ikon mor">${ikon("kilit",17)}</span><div><b>Güvenlik katmanı</b><small>Gateway · rate-limit · CAPTCHA</small></div></div>
+      <div class="yonetim-sistem-kart"><span class="yonetim-sistem-ikon mavi">${ikon("kullanici",17)}</span><div><b>Aktif yönetici</b><small>${kac(k.ad)}</small></div></div>
+    </div>
+    <div class="yonetim-metrik-grid">
+      <div class="yonetim-istatistik"><span class="yonetim-metrik-kicker">TOPLAM</span><div class="yonetim-sayi">${uyeler.length}</div><div class="yonetim-etiket">Kayıtlı kullanıcı</div></div>
+      <div class="yonetim-istatistik"><span class="yonetim-metrik-kicker">ROL</span><div class="yonetim-sayi">${uyeler.filter(u => u.rol === "ogretmen").length}</div><div class="yonetim-etiket">Öğretmen</div></div>
+      <div class="yonetim-istatistik"><span class="yonetim-metrik-kicker">FORUM</span><div class="yonetim-sayi">${soruSayisi}</div><div class="yonetim-etiket">Forum sorusu</div></div>
+      <div class="yonetim-istatistik"><span class="yonetim-metrik-kicker">ETKİLEŞİM</span><div class="yonetim-sayi">${yanitSayisi}</div><div class="yonetim-etiket">Forum yanıtı</div></div>
+    </div>
+    <div class="yonetim-panel">
+      <div class="yonetim-panel-ust"><div><span class="yonetim-kicker koyu">KULLANICI YÖNETİMİ</span><h3>Kullanıcılar ve rol atama</h3><p>Rol, doğrulama, şifre ve hesap işlemlerini buradan yönet.</p></div><span class="yonetim-chip">${uyeler.length} hesap</span></div>
+      <div class="p-3 overflow-auto"><table class="tablo yonetim-tablo">
       <tr><th>Ad Soyad</th><th>E-posta / Telefon</th><th>Kayıt</th><th>Rol</th><th>E-posta Onayı</th><th>İşlem</th></tr>
       ${uyeler.map(u => {
         const anaYonetici = (u.id === "u-admin" || u.id === 1);
+        const mini = kac(String(u.ad || "K").trim().split(/\s+/).slice(0,2).map(x=>x[0]||"").join("").toUpperCase() || "K");
         return `<tr>
-        <td>${u.ad}</td><td>${kac(u.eposta || u.telefon || "—")}</td><td>${tarihKisa(u.olusturma || u.tarih)}</td>
+        <td><div class="yonetim-kullanici"><span class="yonetim-mini-avatar">${mini}</span><span><b>${kac(u.ad)}</b><small>${u.rol ? rolAdi(u.rol) : "Öğrenci"}</small></span></div></td><td>${kac(u.eposta || u.telefon || "—")}</td><td>${tarihKisa(u.olusturma || u.tarih)}</td>
         <td><select class="girdi" style="max-width:150px" onchange="rolGuncelle('${u.id}',this.value)" ${anaYonetici ? "disabled" : ""}>
           ${["ogrenci", "ogretmen", "veli", "admin"].map(r => `<option value="${r}" ${u.rol === r ? "selected" : ""}>${rolAdi(r)}</option>`).join("")}
         </select></td>
         <td>${(u.eposta_onay === 0 || u.eposta_onay === "0") ? `<button class="arac-btn" onclick="uyeOnaylaYap('${u.id}')">Onayla</button>` : `<span class="etiket etiket-cozuldu">${ikon("tik", 11)} Doğrulandı</span>`}</td>
         <td class="whitespace-nowrap">${!anaYonetici ? `<button class="arac-btn" onclick="sifreVer('${u.id}')">Şifre Ver</button> <button class="arac-btn arac-tehlike" onclick="uyeSil('${u.id}')">Sil</button>` : `<span class="etiket">Ana yönetici</span>`}</td>
       </tr>`; }).join("")}
-    </table>
-    <p class="text-[12px] text-slate-400 mt-2">Yeni kayıtlar otomatik olarak <b>Öğrenci</b> olur. Öğretmen ve veli yetkisini buradan tanımlayın.</p></div>
-    <div class="kart-baslik mt-4">Mesaj Denetimi <span class="text-[11px]" style="font-weight:400">— son 100 özel mesaj; sorunlu içerikleri buradan silebilirsiniz</span></div>
-    <div class="p-3">
-      <div class="flex gap-2"><input id="denetimQ" class="girdi" placeholder="Mesajlarda ara…" onkeydown="if(event.key==='Enter')denetimCiz()" /><button class="btn btn-ikincil btn-kucuk" onclick="denetimCiz()">Ara</button></div>
-      <div id="denetimListe" class="mt-2 space-y-2"><div class="text-[13px] text-slate-400">Yükleniyor…</div></div>
+      </table><p class="yonetim-not">Yeni kayıtlar otomatik olarak <b>Öğrenci</b> olur. Yetkileri gerektiğinde buradan güncelleyebilirsin.</p></div>
     </div>
-    <div class="kart-baslik mt-4">E-posta Ayarı Testi</div>
-    <div class="p-3 flex gap-2 flex-wrap items-center">
-      <input id="testEposta" type="email" class="girdi" style="max-width:260px" placeholder="test@eposta.com" />
-      <button class="btn btn-ikincil btn-kucuk" onclick="testEpostaGonder()">Test E-postası Gönder</button>
-      <span class="text-[12px] text-slate-400">Kayıt kodları için Vercel panelindeki Brevo ayarları kullanılır.</span>
+    <div class="yonetim-iki-kolon">
+      <div class="yonetim-panel"><div class="yonetim-panel-ust kompakt"><div><span class="yonetim-kicker koyu">MESAJ DENETİMİ</span><h3>Son özel mesajları incele</h3></div></div><div class="p-3"><div class="yonetim-arama"><input id="denetimQ" class="girdi" placeholder="Mesajlarda ara…" onkeydown="if(event.key==='Enter')denetimCiz()" /><button class="btn btn-ikincil btn-kucuk" onclick="denetimCiz()">Ara</button></div><div id="denetimListe" class="mt-2 space-y-2"><div class="text-[13px] text-slate-400">Yükleniyor…</div></div></div></div>
+      <div class="yonetim-panel"><div class="yonetim-panel-ust kompakt"><div><span class="yonetim-kicker koyu">E-POSTA</span><h3>Doğrulama gönderimini test et</h3></div></div><div class="p-3"><div class="yonetim-arama"><input id="testEposta" type="email" class="girdi" placeholder="test@eposta.com" /><button class="btn btn-birincil btn-kucuk" onclick="testEpostaGonder()">Test gönder</button></div><p class="yonetim-yardim">Kayıt kodları için Vercel ortamındaki e-posta ayarları kullanılır.</p></div></div>
     </div>
-    <div class="kart-baslik mt-4">Şikayetler <span class="text-[11px]" style="font-weight:400">— kullanıcı bildirimleri; içeriği inceleyip silebilirsiniz</span></div>
-    <div class="p-3">
-      <div class="flex gap-2 items-center">
-        <select id="sikayetDurum" class="girdi" style="max-width:200px" onchange="sikayetCiz()">
-          <option value="bekliyor">Bekleyenler</option><option value="tumu">Tümü</option><option value="incelendi">İncelenenler</option>
-        </select>
-        <button class="btn btn-ikincil btn-kucuk" onclick="sikayetCiz()">Yenile</button>
-      </div>
-      <div id="sikayetListe" class="mt-2 space-y-2"><div class="text-[13px] text-slate-400">Yükleniyor…</div></div>
-    </div>`;
+    <div class="yonetim-panel"><div class="yonetim-panel-ust kompakt"><div><span class="yonetim-kicker koyu">ŞİKAYETLER</span><h3>Kullanıcı bildirimleri</h3></div><div class="yonetim-filtre"><select id="sikayetDurum" class="girdi" onchange="sikayetCiz()"><option value="bekliyor">Bekleyenler</option><option value="tumu">Tümü</option><option value="incelendi">İncelenenler</option></select><button class="btn btn-ikincil btn-kucuk" onclick="sikayetCiz()">Yenile</button></div></div><div class="p-3"><div id="sikayetListe" class="space-y-2"><div class="text-[13px] text-slate-400">Yükleniyor…</div></div></div></div>`;
   denetimCiz();
   sikayetCiz();
 }
