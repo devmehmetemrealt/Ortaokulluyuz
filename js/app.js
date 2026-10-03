@@ -474,7 +474,7 @@ async function girisYap(e) {
   const güvenlik = (Auth.sunucuModu() && window.Guvenlik) ? await Guvenlik.tokenIste('girisCaptcha') : true;
   if (!güvenlik) return toast('Önce güvenlik doğrulamasını tamamlayın.');
   const ep = document.getElementById("gEposta").value.trim();
-  const r = await Auth.giris(ep, document.getElementById("gSifre").value, document.getElementById("gWebsite")?.value || "");
+  const r = await Auth.giris(ep, document.getElementById("gSifre").value);
   if (r.hata) {
     if (String(r.hata).startsWith("E-POSTA-DOGRULAMA-GEREK")) { dogrulamaEkraniGoster(ep, "eposta", ""); return; }
     return toast(r.hata);
@@ -489,18 +489,18 @@ async function kayitYap(e) {
   if (!güvenlik) return toast('Önce güvenlik doğrulamasını tamamlayın.');
   const ad = document.getElementById("kAd").value.trim();
   const sf = document.getElementById("kSifre").value;
-  if (ad.length < 3 || sf.length < 8 || !/[a-zçğıöşü]/.test(sf) || !/[A-ZÇĞİÖŞÜ]/.test(sf) || !/\d/.test(sf)) return toast("Ad ve şifreyi kontrol edin. Şifre en az 8 karakter, büyük/küçük harf ve rakam içermeli.");
+  if (ad.length < 3 || sf.length < 4) return toast("Ad ve şifreyi kontrol edin (şifre en az 4 karakter).");
   const kanal = kayitKanali();
   let r;
   try {
     if (kanal === "telefon") {
       const tel = document.getElementById("kTelefon").value.trim();
       if (!tel) return toast("Telefon numaranızı yazın.");
-      r = await Auth.telefonKayit(ad, tel, sf, document.getElementById("kWebsite")?.value || "");
+      r = await Auth.telefonKayit(ad, tel, sf);
     } else {
       const ep = document.getElementById("kEposta").value.trim();
       if (!ep) return toast("E-posta adresinizi yazın.");
-      r = await Auth.kayit(ad, ep, sf, document.getElementById("kWebsite")?.value || "");
+      r = await Auth.kayit(ad, ep, sf);
     }
   }
   catch (e2) { return toast("Kayıt sırasında bağlantı hatası."); }
@@ -657,13 +657,13 @@ async function profilCiz() {
       <div class="border border-slate-200 rounded-lg p-3"><div class="font-bold text-[13px] text-slate-700 profil-ico">${ikon("kalem", 14)} Kaydedilen Sayfa Notları (${notSayisi})</div>
         <p class="text-[12.5px] text-slate-500 mt-1">Z-Kitap'ta kalemle yazdıklarınız bu cihazda saklanır. Okuyucuda kaldığınız sayfayı açtığınızda notlarınız geri yüklenir.</p>
         <div class="mt-2 border-t pt-2"><div class="font-bold text-[13px] text-slate-700">Şifre Değiştir</div>
-        <div class="grid gap-2 mt-1"><input id="mevcutSifre" type="password" class="girdi" placeholder="Mevcut şifreniz" autocomplete="current-password" /><input id="yeniSifre" type="password" class="girdi" placeholder="Yeni şifre (en az 8; büyük/küçük harf + rakam)" autocomplete="new-password" /><button class="btn btn-ikincil btn-kucuk" onclick="parolaGuncelle()">Şifreyi yenile</button></div></div></div>
+        <div class="flex gap-2 mt-1"><input id="yeniSifre" type="password" class="girdi" placeholder="Yeni şifre (en az 6 karakter)" /><button class="btn btn-ikincil btn-kucuk" onclick="parolaGuncelle()">Kaydet</button></div></div></div>
       <div class="border border-slate-200 rounded-lg p-3"><div class="font-bold text-[13px] text-slate-700 profil-ico">${ikon("yorum", 14)} Sorularım (${sorular.length})</div>
         <div class="mt-2 space-y-1 text-[13px]">${sorular.map(s2 => `<button class="text-blue-800 hover:underline" onclick="soruDetay('${s2.id}')">${s2.baslik}</button>`).join("") || `<span class="text-slate-400">Henüz soru sormadınız.</span>`}</div></div>
     </div>`;
 }
 async function parolaGuncelle() {
-  const r = await Auth.parolaDegistir(document.getElementById("yeniSifre").value, document.getElementById("mevcutSifre").value);
+  const r = await Auth.parolaDegistir(document.getElementById("yeniSifre").value);
   toast(r.ok ? "Şifreniz güncellendi." : r.hata);
 }
 
@@ -986,13 +986,6 @@ function animasyonKur() {
 function yukariCik() { window.scrollTo({ top: 0, behavior: "smooth" }); }
 
 // --- yardımcılar ---
-function globalAra(e) {
-  if (!e || e.key !== 'Enter') return;
-  const q = String((e.currentTarget && e.currentTarget.value) || '').trim();
-  if (!q) return;
-  location.href = 'kitaplar.html?q=' + encodeURIComponent(q);
-}
-
 function tarihKisa(t) { try { return new Date(t).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" }); } catch { return ""; } }
 function kac(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 

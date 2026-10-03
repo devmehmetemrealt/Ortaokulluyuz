@@ -1,4 +1,4 @@
-/* Auth — Vercel/Postgres sunucusu varsa onu kullanır, yoksa yerel moda düşer.
+/* Auth — sunucu (PHP+MySQL) varsa onu kullanır, yoksa yerel moda düşer.
    Roller kayıt ekranında seçilemez; yalnızca yönetici atar. */
 function ookHash(sifre) {
   const s = String(sifre) + "::ook-salt-v1";
@@ -92,7 +92,7 @@ const YerelAuth = {
   parolaDegistir(yeniSifre) {
     const k = this.mevcut();
     if (!k) return { hata: "Giriş yapmalısınız." };
-    if (String(yeniSifre).length < 8 || !/[a-zçğıöşü]/.test(String(yeniSifre)) || !/[A-ZÇĞİÖŞÜ]/.test(String(yeniSifre)) || !/\d/.test(String(yeniSifre))) return { hata: "Şifre en az 8 karakter, büyük/küçük harf ve rakam içermeli." };
+    if (String(yeniSifre).length < 6) return { hata: "Şifre en az 6 karakter olmalı." };
     const l = this.tumKullanicilar();
     const kayit = l.find(x => x.id === k.id);
     if (!kayit) return { hata: "Kullanıcı bulunamadı." };
@@ -105,11 +105,7 @@ const YerelAuth = {
 const Auth = {
   _uzak: false,
   _oturum: null,
-  _sunucuZorunlu: false,
-  _baglantiHatasi: false,
   async baslat() {
-    this._sunucuZorunlu = location.protocol === 'https:' && !/^(localhost|127\.0\.0\.1|::1)$/i.test(location.hostname);
-    this._baglantiHatasi = false;
     this._uzak = await API.ping();
     if (this._uzak) {
       try {
@@ -117,50 +113,42 @@ const Auth = {
         this._oturum = (j && j.ok && j.kullanici) ? j.kullanici : null;
       } catch (e) { this._uzak = false; }
     }
-    if (!this._uzak) {
-      if (this._sunucuZorunlu) { this._baglantiHatasi = true; return false; }
-      YerelAuth._tohumla();
-    }
+    if (!this._uzak) YerelAuth._tohumla();
     return this._uzak;
   },
   sunucuModu() { return this._uzak; },
-  sunucuZorunluMu() { return this._sunucuZorunlu; },
-  baglantiHatasiVar() { return this._baglantiHatasi; },
   mevcut() {
     if (this._uzak) return this._oturum;
-    if (this._sunucuZorunlu) return null;
     return YerelAuth.mevcut();
   },
-  async kayit(ad, eposta, sifre, website = "") {
+  async kayit(ad, eposta, sifre) {
     if (this._uzak) {
-      const j = await API.sor("kayit", { ad, eposta, sifre, website });
+      const j = await API.sor("kayit", { ad, eposta, sifre });
       if (!j.ok) return { hata: j.hata || "Kayıt başarısız." };
       if (j.dogrulama_gerekli) return { ok: true, dogrulama_gerekli: true, eposta: j.eposta, posta_hatasi: j.posta_hatasi || "" };
       this._oturum = j.kullanici;
       return { ok: true, kullanici: j.kullanici };
     }
-    if (this._sunucuZorunlu) return { hata: 'Sunucu bağlantısı kurulamadı. Lütfen biraz sonra tekrar deneyin.' };
     return YerelAuth.kayit(ad, eposta, sifre);
   },
   async dogrula(hedef, kod) {
-    if (!this._uzak) { if (this._sunucuZorunlu) return { hata: 'Sunucu bağlantısı kurulamadı. Lütfen biraz sonra tekrar deneyin.' }; return { ok: true }; }
+    if (!this._uzak) return { ok: true };
     const j = await API.sor("dogrula", { hedef, kod });
     if (!j.ok) return { hata: j.hata || "Doğrulanamadı." };
     this._oturum = j.kullanici;
     return { ok: true, kullanici: j.kullanici };
   },
   async kodTekrar(hedef) {
-    if (!this._uzak) { if (this._sunucuZorunlu) return { hata: 'Sunucu bağlantısı kurulamadı. Lütfen biraz sonra tekrar deneyin.' }; return { ok: true }; }
+    if (!this._uzak) return { ok: true };
     const j = await API.sor("kod-tekrar", { hedef });
     return j.ok ? { ok: true } : { hata: j.hata || "Kod gönderilemedi." };
   },
-  async telefonKayit(ad, telefon, sifre, website = "") {
+  async telefonKayit(ad, telefon, sifre) {
     if (!this._uzak) {
-      if (this._sunucuZorunlu) return { hata: 'Sunucu bağlantısı kurulamadı. Lütfen biraz sonra tekrar deneyin.' };
       const r = YerelAuth.kayit(ad, telefon, sifre);
       return r;
     }
-    const j = await API.sor("telefon-kayit", { ad, telefon, sifre, website });
+    const j = await API.sor("telefon-kayit", { ad, telefon, sifre });
     if (!j.ok) return { hata: j.hata || "Kayıt başarısız." };
     return { ok: true, dogrulama_gerekli: true, hedef: j.hedef, kanal: "telefon", posta_hatasi: j.posta_hatasi || "" };
   },
@@ -185,21 +173,19 @@ const Auth = {
       const j = await API.sor("uye-onayla", { id: kullaniciId });
       return j.ok ? { ok: true } : { hata: j.hata || "Onaylanamadı." };
     }
-    if (this._sunucuZorunlu) return { hata: 'Sunucu bağlantısı kurulamadı. Lütfen biraz sonra tekrar deneyin.' };
     return { ok: true };
   },
   async testEposta(eposta) {
     const j = await API.sor("test-eposta", { eposta });
     return j.ok ? { ok: true } : { hata: j.hata || "Gönderilemedi." };
   },
-  async giris(eposta, sifre, website = "") {
+  async giris(eposta, sifre) {
     if (this._uzak) {
-      const j = await API.sor("giris", { eposta, sifre, website });
+      const j = await API.sor("giris", { eposta, sifre });
       if (!j.ok) return { hata: j.hata || "Giriş başarısız." };
       this._oturum = j.kullanici;
       return { ok: true, kullanici: j.kullanici };
     }
-    if (this._sunucuZorunlu) return { hata: 'Sunucu bağlantısı kurulamadı. Lütfen biraz sonra tekrar deneyin.' };
     return YerelAuth.giris(eposta, sifre);
   },
   async cikis() {
@@ -244,9 +230,9 @@ const Auth = {
     }
     return YerelAuth.sifreSifirla(kullaniciId, yeniSifre);
   },
-  async parolaDegistir(yeniSifre, mevcutSifre) {
+  async parolaDegistir(yeniSifre) {
     if (this._uzak) {
-      const j = await API.sor("sifre-degistir", { yeni: yeniSifre, mevcut: mevcutSifre });
+      const j = await API.sor("sifre-degistir", { yeni: yeniSifre });
       return j.ok ? { ok: true } : { hata: j.hata || "Güncellenemedi." };
     }
     return YerelAuth.parolaDegistir(yeniSifre);

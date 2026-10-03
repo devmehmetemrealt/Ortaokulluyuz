@@ -67,14 +67,6 @@ CREATE TABLE IF NOT EXISTS paylasimlar (
   olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_paylasim_sinif_ders ON paylasimlar (sinif, ders);
-CREATE TABLE IF NOT EXISTS guvenlik_oturum (
-  jti_hash CHAR(64) PRIMARY KEY, kullanici_id INT NOT NULL, bitis TIMESTAMPTZ NOT NULL,
-  ua_hash CHAR(64) NOT NULL, ip_hash CHAR(64) NOT NULL, iptal BOOLEAN NOT NULL DEFAULT FALSE,
-  olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS idx_guvenlik_oturum_user ON guvenlik_oturum (kullanici_id, olusturma DESC);
-CREATE INDEX IF NOT EXISTS idx_guvenlik_oturum_bitis ON guvenlik_oturum (bitis);
-
 CREATE TABLE IF NOT EXISTS ayarlar (anahtar TEXT PRIMARY KEY, deger TEXT NOT NULL);
 
 CREATE TABLE IF NOT EXISTS kullanici_tercih (
@@ -148,7 +140,3 @@ CREATE TABLE IF NOT EXISTS guvenlik_nonce (
   bitis TIMESTAMPTZ NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_guvenlik_nonce_bitis ON guvenlik_nonce (bitis);
-
-ALTER TABLE captcha_zorluk ADD COLUMN IF NOT EXISTS pow_salt CHAR(64) NOT NULL DEFAULT '';
-ALTER TABLE captcha_zorluk ADD COLUMN IF NOT EXISTS pow_difficulty SMALLINT NOT NULL DEFAULT 3;
-ALTER TABLE captcha_gecis ADD COLUMN IF NOT EXISTS ua_hash CHAR(64) NOT NULL DEFAULT '';

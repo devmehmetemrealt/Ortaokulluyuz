@@ -150,7 +150,7 @@ ADIM 5 - KONTROL
     mail portları kapalıdır). Hotmail şifresine gerek kalmadı.
   - Eski MySQL verileri çöken hostingde kaldı; site sıfırdan başlar.
     Üyeler yeniden kayıt olur, roller Yönetim Paneli'nden atanır.
-  - Production alan adında sunucuya ulaşılamazsa yerel auth/data moduna düşmez; güvenli biçimde bağlantı hatası gösterilir. localhost testinde yerel fallback korunur.
+  - Sunucuya ulaşılamazsa site otomatik "Yerel mod"a düşer (eski davranış).
 
 GÜVENLİK GÜNCELLEMESİ
 ---------------------

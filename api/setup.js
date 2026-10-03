@@ -73,12 +73,11 @@ const DDL = [
   `CREATE INDEX IF NOT EXISTS idx_paylasim_sinif_ders ON paylasimlar (sinif, ders)`,
   `CREATE TABLE IF NOT EXISTS captcha_zorluk (
     token_hash CHAR(64) PRIMARY KEY, soru VARCHAR(240) NOT NULL, cevap_hash CHAR(64) NOT NULL, ip_hash CHAR(64) NOT NULL,
-    ua_hash CHAR(64) NOT NULL DEFAULT '',
     deneme SMALLINT NOT NULL DEFAULT 0, kullanildi BOOLEAN NOT NULL DEFAULT FALSE, bitis TIMESTAMPTZ NOT NULL, olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`,
   `CREATE INDEX IF NOT EXISTS idx_captcha_bitis ON captcha_zorluk (bitis)`,
   `CREATE TABLE IF NOT EXISTS captcha_gecis (
-    token_hash CHAR(64) PRIMARY KEY, ip_hash CHAR(64) NOT NULL, ua_hash CHAR(64) NOT NULL DEFAULT '', bitis TIMESTAMPTZ NOT NULL, kullanim INT NOT NULL DEFAULT 0, olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    token_hash CHAR(64) PRIMARY KEY, ip_hash CHAR(64) NOT NULL, bitis TIMESTAMPTZ NOT NULL, kullanim INT NOT NULL DEFAULT 0, olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`,
   `CREATE INDEX IF NOT EXISTS idx_captcha_gecis_bitis ON captcha_gecis (bitis)`,
   `CREATE TABLE IF NOT EXISTS guvenlik_hiz_sinir (
@@ -89,13 +88,6 @@ const DDL = [
     nonce_hash CHAR(64) PRIMARY KEY, bitis TIMESTAMPTZ NOT NULL
   )`,
   `CREATE INDEX IF NOT EXISTS idx_guvenlik_nonce_bitis ON guvenlik_nonce (bitis)`,
-  `CREATE TABLE IF NOT EXISTS guvenlik_oturum (
-    jti_hash CHAR(64) PRIMARY KEY, kullanici_id INT NOT NULL, bitis TIMESTAMPTZ NOT NULL,
-    ua_hash CHAR(64) NOT NULL, ip_hash CHAR(64) NOT NULL, iptal BOOLEAN NOT NULL DEFAULT FALSE,
-    olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
-  )`,
-  `CREATE INDEX IF NOT EXISTS idx_guvenlik_oturum_user ON guvenlik_oturum (kullanici_id, olusturma DESC)`,
-  `CREATE INDEX IF NOT EXISTS idx_guvenlik_oturum_bitis ON guvenlik_oturum (bitis)`,
   `CREATE TABLE IF NOT EXISTS ayarlar (anahtar TEXT PRIMARY KEY, deger TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS kullanici_tercih (
     kullanici_id INT NOT NULL, sinif SMALLINT NOT NULL, ders VARCHAR(32) NOT NULL DEFAULT '', kitap_id VARCHAR(32) NOT NULL DEFAULT '',
@@ -146,17 +138,11 @@ function sayfa(mesaj, tur) {
     '<label>Kurulum anahtarı (Vercel SETUP_KEY ile aynı olmalı)</label><input name="anahtar" required autocomplete="off" />' +
     '<label>Yönetici adı</label><input name="admin_ad" required />' +
     '<label>Yönetici e-postası</label><input name="admin_eposta" type="email" required />' +
-    '<label>Yönetici şifresi (en az 10 karakter; büyük/küçük harf ve rakam)</label><input name="admin_sifre" type="password" required autocomplete="new-password" />' +
+    '<label>Yönetici şifresi (en az 6 karakter)</label><input name="admin_sifre" type="password" required />' +
     '<button type="submit">Kurulumu Başlat</button></form></div></body></html>';
 }
 
 module.exports = async (req, res) => {
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('Referrer-Policy', 'no-referrer');
-  res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'");
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   if (req.method !== 'POST') return res.end(sayfa('', ''));
   const govde = await govdeOku(req);
@@ -177,7 +163,7 @@ module.exports = async (req, res) => {
     return res.end(sayfa('Kurulum anahtarı hatalı.', 'hata'));
   if (adminAd.length < 3) return res.end(sayfa('Yönetici adı en az 3 karakter olmalı.', 'hata'));
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(adminEposta)) return res.end(sayfa('Geçerli bir e-posta yazın.', 'hata'));
-  if (adminSifre.length < 10 || !/[a-zçğıöşü]/.test(adminSifre) || !/[A-ZÇĞİÖŞÜ]/.test(adminSifre) || !/\d/.test(adminSifre)) return res.end(sayfa('Yönetici şifresi en az 10 karakter olmalı ve büyük/küçük harf ile rakam içermeli.', 'hata'));
+  if (adminSifre.length < 6) return res.end(sayfa('Yönetici şifresi en az 6 karakter olmalı.', 'hata'));
   if (!process.env.DATABASE_URL) return res.end(sayfa('DATABASE_URL tanımlı değil.', 'hata'));
 
   const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
@@ -185,10 +171,6 @@ module.exports = async (req, res) => {
     for (const sql of DDL) await pool.query(sql);
     await pool.query('ALTER TABLE uyeler ALTER COLUMN eposta DROP NOT NULL').catch(() => {});
     await pool.query('ALTER TABLE uyeler ADD COLUMN IF NOT EXISTS telefon VARCHAR(20)').catch(() => {});
-    await pool.query("ALTER TABLE captcha_zorluk ADD COLUMN IF NOT EXISTS ua_hash CHAR(64) NOT NULL DEFAULT ''").catch(() => {});
-    await pool.query("ALTER TABLE captcha_zorluk ADD COLUMN IF NOT EXISTS pow_salt CHAR(64) NOT NULL DEFAULT ''").catch(() => {});
-    await pool.query("ALTER TABLE captcha_zorluk ADD COLUMN IF NOT EXISTS pow_difficulty SMALLINT NOT NULL DEFAULT 3").catch(() => {});
-    await pool.query("ALTER TABLE captcha_gecis ADD COLUMN IF NOT EXISTS ua_hash CHAR(64) NOT NULL DEFAULT ''").catch(() => {});
     await pool.query("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_uyeler_telefon') THEN ALTER TABLE uyeler ADD CONSTRAINT uq_uyeler_telefon UNIQUE (telefon); END IF; END $$").catch(() => {});
     const bayrak = await pool.query("SELECT deger FROM ayarlar WHERE anahtar = 'kurulum'");
     if (bayrak.rows.length) {
@@ -200,11 +182,11 @@ module.exports = async (req, res) => {
     if (mevcut.rows.length) {
       adminId = mevcut.rows[0].id;
       await pool.query("UPDATE uyeler SET ad = $1, parola = $2, rol = 'admin', eposta_onay = TRUE WHERE id = $3",
-        [adminAd, await bcrypt.hash(adminSifre, 12), adminId]);
+        [adminAd, await bcrypt.hash(adminSifre, 10), adminId]);
     } else {
       const ek = await pool.query(
         "INSERT INTO uyeler (ad, eposta, parola, rol, eposta_onay) VALUES ($1,$2,$3,'admin',TRUE) RETURNING id",
-        [adminAd, adminEposta, await bcrypt.hash(adminSifre, 12)]);
+        [adminAd, adminEposta, await bcrypt.hash(adminSifre, 10)]);
       adminId = ek.rows[0].id;
     }
     const sayi = await pool.query('SELECT COUNT(*) c FROM sorular');
@@ -231,7 +213,7 @@ module.exports = async (req, res) => {
     }
     await pool.query("INSERT INTO ayarlar (anahtar, deger) VALUES ('kurulum', 'tamam') ON CONFLICT (anahtar) DO NOTHING");
     await pool.end();
-    return res.end(sayfa('Kurulum tamamlandı. Güvenlik tabloları ve CAPTCHA şeması hazır.', 'ok'));
+    return res.end(sayfa('Kurulum tamamlandı. Yönetici bilgilerinizle giriş yapabilirsiniz.', 'ok'));
   } catch (e) {
     try { await pool.end(); } catch (e2) {}
     return res.end(sayfa('Kurulum başarısız: ' + e.message, 'hata'));
