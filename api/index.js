@@ -93,6 +93,8 @@ const ISLEM_KODLARI = {
   'paylasim-sil': 'a32',
   'avatar-guncelle': 'a35',
   'avatar-sil': 'a36',
+  'devtools-rapor': 'a37',
+  'ip-durum': 'a38',
 };
 const KOD_ISLEMLERI = Object.fromEntries(Object.entries(ISLEM_KODLARI).map(([k, v]) => [v, k]));
 
@@ -207,6 +209,42 @@ function originGuvenliMi(req) {
     return new URL(origin).host === allowed;
   } catch (e) { return false; }
 }
+function adminIpAllowlist() {
+  return String(process.env.ADMIN_IP_ALLOWLIST || '').split(',').map(v => v.trim()).filter(Boolean);
+}
+function adminIpMuaf(req) {
+  const ip = ipOku(req);
+  return adminIpAllowlist().includes(ip);
+}
+async function yoneticiMi(client, req) {
+  if (adminIpMuaf(req)) return true;
+  try {
+    const k = await oturum(req);
+    return !!(k && k.rol === 'admin');
+  } catch (e) { return false; }
+}
+async function ipBaniKontrol(client, req) {
+  const yonetici = await yoneticiMi(client, req);
+  if (yonetici) return { ok: true, admin: true };
+  const r = await client.query(
+    `SELECT sebep, bitis FROM guvenlik_ip_yasak WHERE ip_hash = $1 AND bitis > NOW() ORDER BY bitis DESC LIMIT 1`,
+    [ipHash(req)]
+  );
+  if (!r.rows.length) return { ok: true, admin: false };
+  return { ok: false, admin: false, sebep: r.rows[0].sebep, bitis: new Date(r.rows[0].bitis).getTime() };
+}
+async function ipBaniUygula(client, req, dakika, sebep) {
+  if (await yoneticiMi(client, req)) return { ok: true, admin: true };
+  const sure = Math.max(1, Number(dakika || 60));
+  const bitis = new Date(Date.now() + sure * 60 * 1000);
+  await client.query(
+    `INSERT INTO guvenlik_ip_yasak (ip_hash, bitis, sebep) VALUES ($1,$2,$3)
+     ON CONFLICT (ip_hash) DO UPDATE SET bitis = GREATEST(guvenlik_ip_yasak.bitis, EXCLUDED.bitis), sebep = EXCLUDED.sebep`,
+    [ipHash(req), bitis, sebep || 'devtools']
+  );
+  return { ok: true, admin: false, bitis: bitis.getTime() };
+}
+
 async function rateLimit(client, req, islem, limit, dakika) {
   const anahtar = ipHash(req);
   const pencere = Math.floor(Date.now() / (dakika * 60 * 1000));
@@ -356,6 +394,11 @@ async function guvenlikSemasiHazirla() {
       guncelleme TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       PRIMARY KEY (saglayici, donem)
     )`);
+    await p.query(`CREATE TABLE IF NOT EXISTS guvenlik_ip_yasak (
+      ip_hash CHAR(64) PRIMARY KEY, bitis TIMESTAMPTZ NOT NULL,
+      sebep VARCHAR(64) NOT NULL DEFAULT 'devtools', olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await p.query('CREATE INDEX IF NOT EXISTS idx_guvenlik_ip_yasak_bitis ON guvenlik_ip_yasak (bitis)');
   })().catch((err) => { _guvenlikSchemaReady = null; throw err; });
   return _guvenlikSchemaReady;
 }
@@ -528,6 +571,8 @@ module.exports = async (req, res) => {
   try {
     await guvenlikSemasiHazirla();
     await uyelerSemasiHazirla(client);
+    const ban = await ipBaniKontrol(client, req);
+    if (!ban.ok) return hata(res, 'Bu bağlantı geçici olarak engellendi.', 403, 'IP_BANNED');
     if (gateway && !await gatewayTekrarKontrol(client, req, rawGovde)) return hata(res, 'Geçersiz veya tekrarlanan istek.', 409, 'REQUEST_REJECTED');
     const globalLimit = await rateLimit(client, req, 'genel', 240, 1);
     if (!globalLimit) return hata(res, 'Çok fazla istek gönderildi. Biraz sonra tekrar deneyin.', 429, 'RATE_LIMIT');
@@ -562,6 +607,18 @@ module.exports = async (req, res) => {
     if (!guvenlik.ok) return hata(res, guvenlik.mesaj, 428, guvenlik.kod);
 
     switch (islem) {
+      case 'ip-durum': {
+        const b = await ipBaniKontrol(client, req);
+        return gonder(res, 200, { ok: true, engelli: !b.ok, yonetici: !!b.admin, bitis: b.bitis || 0 });
+      }
+
+      case 'devtools-rapor': {
+        if (await yoneticiMi(client, req)) return gonder(res, 200, { ok: true, muaf: true });
+        const dakika = Math.max(1, Number.parseInt(process.env.DEVTOOLS_BAN_MINUTES || '60', 10) || 60);
+        const sonuc = await ipBaniUygula(client, req, dakika, 'devtools');
+        return hata(res, 'Geliştirici araçları tespit edildi. Bu bağlantı geçici olarak engellendi.', 403, 'IP_BANNED');
+      }
+
       case 'captcha-yeni': {
         await client.query('DELETE FROM captcha_zorluk WHERE bitis < NOW()');
         await client.query('DELETE FROM captcha_gecis WHERE bitis < NOW()');

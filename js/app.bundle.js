@@ -555,50 +555,49 @@ window.addEventListener("visibilitychange", () => {
   }
 });
 
+window.__OOK_ADMIN__ = window.__OOK_ADMIN__ === true;
+
 /* Tarayıcı geliştirici araçları koruması.
-   Not: DevTools'u tarayıcıdan %100 güvenilir biçimde tespit etmek mümkün değildir.
-   İki bağımsız sinyal alınırsa IP ban raporu gönderilir; yönetici allowlist'i bypass eder. */
+   Yönetici hesabı ve ADMIN_IP_ALLOWLIST muaf tutulur.
+   Not: DevTools web sayfasından %100 güvenilir biçimde tespit edilemez;
+   bu yalnızca tamamlayıcı kötüye kullanım tespiti katmanıdır. */
 (function DevToolsGuard(){
-  const state = {signals:new Set(), sent:false, debuggerHits:0};
+  const state = {signals:new Set(),sent:false,debuggerHits:0};
   const masaustu = () => window.matchMedia?.('(pointer:fine)').matches && window.innerWidth >= 900;
+  const adminMuaf = () => window.__OOK_ADMIN__ === true;
   const mark = (s) => {
-    if (!masaustu() || state.sent) return;
+    if (adminMuaf() || !masaustu() || state.sent) return;
     state.signals.add(s);
     if (state.signals.size >= 2) raporla();
   };
-  function geometri(){
-    if (!masaustu()) return;
+  const geometri = () => {
+    if (adminMuaf() || !masaustu()) return;
     const dw = (window.outerWidth || 0) - (window.innerWidth || 0);
     const dh = (window.outerHeight || 0) - (window.innerHeight || 0);
     if (dw > 280 || dh > 220) mark('dock');
-  }
+  };
   async function raporla(){
-    if (state.sent || state.signals.size < 2) return;
+    if (adminMuaf() || state.sent || state.signals.size < 2) return;
     state.sent = true;
     try {
-      const r = await API.sor('devtools-rapor', {kanit:{sinyaller:[...state.signals], masaustu:true}});
-      if (r && r.hata_kodu === 'IP_BANNED' && window.Guvenlik) Guvenlik.banEkrani(Date.now() + 60*60*1000);
+      const r = await API.sor('devtools-rapor',{kanit:{sinyaller:[...state.signals],masaustu:true}});
+      if (r && r.hata_kodu === 'IP_BANNED' && window.Guvenlik) Guvenlik.banEkrani(Date.now()+60*60*1000);
     } catch(e) {}
   }
-  document.addEventListener('keydown', (e) => {
-    const key = String(e.key || '').toLowerCase();
-    const yasak = key === 'f12' || (e.ctrlKey && e.shiftKey && ['i','j','c'].includes(key)) || (e.metaKey && e.altKey && ['i','j','c'].includes(key));
-    if (yasak) { e.preventDefault(); e.stopPropagation(); }
-  }, true);
-  document.addEventListener('contextmenu', e => e.preventDefault(), true);
+  /* Klavye/sağ tık engellemiyoruz: yönetici de normal tarayıcı davranışına sahip.
+     Üç nokta menüsünden açılan DevTools için sinyal tabanlı tespit devam eder. */
   setInterval(() => {
+    if (adminMuaf()) { state.sent = true; return; }
     geometri();
     if (!masaustu() || state.sent) return;
     const t = performance.now();
     debugger;
     const d = performance.now() - t;
     if (d > 160) { state.debuggerHits++; if (state.debuggerHits >= 2) mark('debugger'); }
-    else state.debuggerHits = Math.max(0, state.debuggerHits - 1);
-  }, 1600);
-  window.addEventListener('resize', () => setTimeout(geometri, 200));
+    else state.debuggerHits = Math.max(0,state.debuggerHits-1);
+  },1600);
+  window.addEventListener('resize',()=>setTimeout(geometri,200));
 })();
-
-
 
 /* ===== auth.js ===== */
 /* Auth — sunucu (PHP+MySQL) varsa onu kullanır, yoksa yerel moda düşer.
@@ -714,7 +713,8 @@ const Auth = {
       try {
         const j = await API.sor("oturum");
         this._oturum = (j && j.ok && j.kullanici) ? j.kullanici : null;
-      } catch (e) { this._uzak = false; }
+        window.__OOK_ADMIN__ = !!(this._oturum && this._oturum.rol === 'admin');
+      } catch (e) { this._uzak = false; window.__OOK_ADMIN__ = false; }
     }
     if (!this._uzak) YerelAuth._tohumla();
     return this._uzak;
@@ -730,6 +730,7 @@ const Auth = {
       if (!j.ok) return { hata: j.hata || "Kayıt başarısız." };
       if (j.dogrulama_gerekli) return { ok: true, dogrulama_gerekli: true, eposta: j.eposta, posta_hatasi: j.posta_hatasi || "" };
       this._oturum = j.kullanici;
+      window.__OOK_ADMIN__ = !!(this._oturum && this._oturum.rol === 'admin');
       return { ok: true, kullanici: j.kullanici };
     }
     return YerelAuth.kayit(ad, eposta, sifre);
@@ -739,6 +740,7 @@ const Auth = {
     const j = await API.sor("dogrula", { hedef, kod });
     if (!j.ok) return { hata: j.hata || "Doğrulanamadı." };
     this._oturum = j.kullanici;
+    window.__OOK_ADMIN__ = !!(this._oturum && this._oturum.rol === 'admin');
     return { ok: true, kullanici: j.kullanici };
   },
   async kodTekrar(hedef) {
@@ -760,6 +762,7 @@ const Auth = {
     if (!j.ok) return { hata: j.hata || "Google ile giriş başarısız." };
     if (j.dogrulama_gerekli) return { ok: true, dogrulama_gerekli: true, eposta: j.eposta, kanal: "eposta", posta_hatasi: j.posta_hatasi || "" };
     this._oturum = j.kullanici;
+    window.__OOK_ADMIN__ = !!(this._oturum && this._oturum.rol === 'admin');
     return { ok: true, kullanici: j.kullanici };
   },
   _yapilandirma: null,
@@ -792,8 +795,8 @@ const Auth = {
     return YerelAuth.giris(eposta, sifre);
   },
   async cikis() {
-    if (this._uzak) { try { await API.sor("cikis"); } catch (e) {} this._oturum = null; }
-    else YerelAuth.cikis();
+    if (this._uzak) { try { await API.sor("cikis"); } catch (e) {} this._oturum = null; window.__OOK_ADMIN__ = false; }
+    else { YerelAuth.cikis(); window.__OOK_ADMIN__ = false; }
   },
   adminMi() { const k = this.mevcut(); return !!(k && k.rol === "admin"); },
   async uyeleriGetir() {

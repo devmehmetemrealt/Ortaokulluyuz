@@ -111,7 +111,8 @@ const Auth = {
       try {
         const j = await API.sor("oturum");
         this._oturum = (j && j.ok && j.kullanici) ? j.kullanici : null;
-      } catch (e) { this._uzak = false; }
+        window.__OOK_ADMIN__ = !!(this._oturum && this._oturum.rol === 'admin');
+      } catch (e) { this._uzak = false; window.__OOK_ADMIN__ = false; }
     }
     if (!this._uzak) YerelAuth._tohumla();
     return this._uzak;
@@ -127,6 +128,7 @@ const Auth = {
       if (!j.ok) return { hata: j.hata || "Kayıt başarısız." };
       if (j.dogrulama_gerekli) return { ok: true, dogrulama_gerekli: true, eposta: j.eposta, posta_hatasi: j.posta_hatasi || "" };
       this._oturum = j.kullanici;
+      window.__OOK_ADMIN__ = !!(this._oturum && this._oturum.rol === 'admin');
       return { ok: true, kullanici: j.kullanici };
     }
     return YerelAuth.kayit(ad, eposta, sifre);
@@ -136,6 +138,7 @@ const Auth = {
     const j = await API.sor("dogrula", { hedef, kod });
     if (!j.ok) return { hata: j.hata || "Doğrulanamadı." };
     this._oturum = j.kullanici;
+    window.__OOK_ADMIN__ = !!(this._oturum && this._oturum.rol === 'admin');
     return { ok: true, kullanici: j.kullanici };
   },
   async kodTekrar(hedef) {
@@ -157,6 +160,7 @@ const Auth = {
     if (!j.ok) return { hata: j.hata || "Google ile giriş başarısız." };
     if (j.dogrulama_gerekli) return { ok: true, dogrulama_gerekli: true, eposta: j.eposta, kanal: "eposta", posta_hatasi: j.posta_hatasi || "" };
     this._oturum = j.kullanici;
+    window.__OOK_ADMIN__ = !!(this._oturum && this._oturum.rol === 'admin');
     return { ok: true, kullanici: j.kullanici };
   },
   _yapilandirma: null,
@@ -189,8 +193,8 @@ const Auth = {
     return YerelAuth.giris(eposta, sifre);
   },
   async cikis() {
-    if (this._uzak) { try { await API.sor("cikis"); } catch (e) {} this._oturum = null; }
-    else YerelAuth.cikis();
+    if (this._uzak) { try { await API.sor("cikis"); } catch (e) {} this._oturum = null; window.__OOK_ADMIN__ = false; }
+    else { YerelAuth.cikis(); window.__OOK_ADMIN__ = false; }
   },
   adminMi() { const k = this.mevcut(); return !!(k && k.rol === "admin"); },
   async uyeleriGetir() {
