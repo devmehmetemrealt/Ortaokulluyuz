@@ -557,12 +557,13 @@ window.addEventListener("visibilitychange", () => {
 
 window.__OOK_ADMIN__ = window.__OOK_ADMIN__ === true;
 
+
 /* Tarayıcı geliştirici araçları koruması.
    Yönetici hesabı ve ADMIN_IP_ALLOWLIST muaf tutulur.
-   Not: DevTools web sayfasından %100 güvenilir biçimde tespit edilemez;
-   bu yalnızca tamamlayıcı kötüye kullanım tespiti katmanıdır. */
+   Not: Bir web sayfası DevTools'u %100 güvenilir biçimde tespit edemez;
+   bu katman kötüye kullanım sinyallerini sunucuya bildirir. */
 (function DevToolsGuard(){
-  const state = {signals:new Set(),sent:false,debuggerHits:0};
+  const state = {signals:new Set(),sent:false,debuggerHits:0,started:Date.now()};
   const masaustu = () => window.matchMedia?.('(pointer:fine)').matches && window.innerWidth >= 900;
   const adminMuaf = () => window.__OOK_ADMIN__ === true;
   const mark = (s) => {
@@ -572,32 +573,57 @@ window.__OOK_ADMIN__ = window.__OOK_ADMIN__ === true;
   };
   const geometri = () => {
     if (adminMuaf() || !masaustu()) return;
-    const dw = (window.outerWidth || 0) - (window.innerWidth || 0);
-    const dh = (window.outerHeight || 0) - (window.innerHeight || 0);
-    if (dw > 280 || dh > 220) mark('dock');
+    const dw = Math.max(0, (window.outerWidth || 0) - (window.innerWidth || 0));
+    const dh = Math.max(0, (window.outerHeight || 0) - (window.innerHeight || 0));
+    /* Dock edilmiş DevTools için güçlü geometri sinyali. */
+    if (dw > 220 || dh > 170) mark('dock');
   };
   async function raporla(){
     if (adminMuaf() || state.sent || state.signals.size < 2) return;
     state.sent = true;
     try {
-      const r = await API.sor('devtools-rapor',{kanit:{sinyaller:[...state.signals],masaustu:true}});
+      const r = await API.sor('devtools-rapor',{kanit:{sinyaller:[...state.signals],masaustu:true,ts:Date.now()}});
       if (r && r.hata_kodu === 'IP_BANNED' && window.Guvenlik) Guvenlik.banEkrani(Date.now()+60*60*1000);
+    } catch(e) {
+      /* Güvenlik raporunun başarısız olması sayfayı kilitlemez. */
+    }
+  }
+
+  /* Konsol paneli açıkken DevTools'un nesneyi incelemesinden yararlanan ek sinyal. */
+  function consoleCanary(){
+    if (adminMuaf() || !masaustu() || state.sent) return;
+    try {
+      const canary = {};
+      Object.defineProperty(canary, 'id', {
+        configurable: true,
+        get(){ mark('console'); return 'ook'; }
+      });
+      console.debug('%c', 'font-size:0', canary);
     } catch(e) {}
   }
-  /* Klavye/sağ tık engellemiyoruz: yönetici de normal tarayıcı davranışına sahip.
-     Üç nokta menüsünden açılan DevTools için sinyal tabanlı tespit devam eder. */
+
+  /* Klavye/sağ tık engellenmiyor. DevTools'u menüden açan kullanıcı da tespit edilebilir.
+     debugger ölçümü, tarayıcı DevTools açıkken yürütmenin duraksamasını yakalamaya çalışır. */
   setInterval(() => {
-    if (adminMuaf()) { state.sent = true; return; }
+    if (adminMuaf()) return;
     geometri();
     if (!masaustu() || state.sent) return;
     const t = performance.now();
     debugger;
     const d = performance.now() - t;
-    if (d > 160) { state.debuggerHits++; if (state.debuggerHits >= 2) mark('debugger'); }
-    else state.debuggerHits = Math.max(0,state.debuggerHits-1);
-  },1600);
-  window.addEventListener('resize',()=>setTimeout(geometri,200));
+    if (d > 75) {
+      state.debuggerHits++;
+      if (state.debuggerHits >= 2) mark('debugger');
+    } else {
+      state.debuggerHits = Math.max(0, state.debuggerHits - 1);
+    }
+  }, 1400);
+
+  setInterval(consoleCanary, 2200);
+  window.addEventListener('resize',()=>setTimeout(geometri,150));
+  window.addEventListener('beforeunload',()=>{ /* sadece sayaç/sinyal tutulur */ });
 })();
+
 
 /* ===== auth.js ===== */
 /* Auth — sunucu (PHP+MySQL) varsa onu kullanır, yoksa yerel moda düşer.
