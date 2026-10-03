@@ -19,3 +19,7 @@
 TURN değişkenleri mevcut sistemdeki gibi kullanılmaya devam eder.
 
 > Bu CAPTCHA, Cloudflare Turnstile seviyesinde bot analizi yapmaz. Token, kısa süre, IP bağlama ve rate-limit ile birlikte hafif/yerel bir bot bariyeridir.
+
+
+### DevTools ban istisnası
+Vercel Environment Variables: `ADMIN_IP_ALLOWLIST` — virgülle ayrılmış public IP adresleri. Örnek: `203.0.113.10,198.51.100.7`. Bu listede olan IP adresleri DevTools banından muaftır. `DEVTOOLS_BAN_MINUTES` varsayılan 60 dakikadır.

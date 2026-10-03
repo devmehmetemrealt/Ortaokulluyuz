@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kayıt Ol — Ortaokulluyuz</title>
+<meta name="description" content="Ortaokulluyuz öğrenci hesabı oluştur." />
+<link rel="icon" type="image/svg+xml" href="img/logo.svg?v=9" />
+<link rel="stylesheet" href="css/styles.css?v=12" />
+<link rel="stylesheet" href="css/theme-v7.css?v=9" />
+<link rel="stylesheet" href="css/theme-v8.css?v=4" />
+</head>
+<body data-sayfa="kayit">
+<div class="kurum-serit"><div class="sutun-dar px-4"><span>Ortaokulluyuz • 5-8. sınıflar için dijital eğitim platformu</span><a href="index.html" class="top-link">Anasayfaya dön</a></div></div>
+<header class="ana-nav"><div class="sutun-dar px-4 nav-ic">
+<a class="marka" href="index.html" style="text-decoration:none"><img class="amblem-img" src="img/logo.svg?v=9" alt="Ortaokulluyuz" /><span><span class="marka-ad">Ortaokulluyuz</span><span class="marka-alt">Dijital Ders Kitabı ve Eğitim Platformu • 5-8. Sınıflar</span></span></a>
+<div class="ml-auto"><a class="btn btn-ikincil btn-kucuk" href="index.html#giris">Giriş Yap</a></div>
+</div></header>
+<main class="kayit-sayfa">
+<div class="kayit-grid">
+<section class="kayit-sanat">
+<span class="kayit-sanat-etiket">HESABINI OLUŞTUR</span>
+<h1>Derslerini, kitaplarını ve forumu tek yerde topla.</h1>
+<p>Telefon veya e-posta ile güvenli bir öğrenci hesabı oluştur. Hesabın doğrulandıktan sonra kişiselleştirilmiş kitap önerileri, forum ve mesajlaşma özelliklerini kullanabilirsin.</p>
+<div class="kayit-ozellikler">
+<div class="kayit-ozellik"><span>📚</span><div><b>Ders kitapları</b><small>5-8. sınıf içerikleri</small></div></div>
+<div class="kayit-ozellik"><span>💬</span><div><b>Ödev forumu</b><small>Soru sor, çözüm paylaş</small></div></div>
+<div class="kayit-ozellik"><span>✨</span><div><b>Kişisel öneriler</b><small>İlgilendiğin sınıfa göre</small></div></div>
+<div class="kayit-ozellik"><span>🔒</span><div><b>Doğrulanmış hesap</b><small>E-posta veya SMS kodu</small></div></div>
+</div>
+</section>
+<section class="kayit-kutu">
+<div class="kayit-kutu-ust"><div><span class="profil-kicker">YENİ HESAP</span><h2>Kayıt ol</h2><p>Hesabını oluşturmak yaklaşık 1 dakika sürer.</p></div></div>
+<div id="kayitDurum" class="kayit-durum"></div>
+<div id="kayitSayfaAdim1" class="kayit-adim">
+<form id="kayitSayfaForm">
+<div class="kayit-girdi-grup"><label class="kayit-etiket">Ad Soyad</label><input id="kAdSayfa" required class="girdi" maxlength="120" placeholder="Adınız Soyadınız" autocomplete="name" /></div>
+<div class="kayit-sekme-wrap" id="kayitSayfaKanal"><button type="button" class="kanal-sekme aktif" data-kanal="eposta" onclick="kayitSayfasiKanalSec('eposta')">E-posta</button><button type="button" class="kanal-sekme" data-kanal="telefon" onclick="kayitSayfasiKanalSec('telefon')">Telefon</button></div>
+<div id="kayitSayfaEpostaSar" class="kayit-girdi-grup"><label class="kayit-etiket">E-posta adresi</label><input id="kEpostaSayfa" type="email" class="girdi" maxlength="160" placeholder="ornek@eposta.com" autocomplete="email" /></div>
+<div id="kayitSayfaTelefonSar" class="kayit-girdi-grup hidden"><label class="kayit-etiket">Cep telefonu</label><div class="telefon-sar"><span class="telefon-on">+90</span><input id="kTelefonSayfa" type="tel" inputmode="numeric" class="girdi" placeholder="5__ ___ __ __" autocomplete="tel" maxlength="13" /></div><div class="kayit-yardim">SMS doğrulama kodu bağladığın TextBee cihazı üzerinden gönderilir.</div></div>
+<div class="kayit-girdi-grup"><label class="kayit-etiket">Şifre</label><input id="kSifreSayfa" required type="password" minlength="4" class="girdi" placeholder="En az 4 karakter" autocomplete="new-password" /></div>
+<div id="kayitCaptchaSayfa" class="mt-3"></div>
+<div class="guvenlik-notu">🔐 <span>Doğrulama kodun tek kullanımlıdır. Kod ve güvenlik bilgileri sunucu tarafında kontrol edilir.</span></div>
+<button class="btn btn-birincil w-full justify-center mt-4">Hesap Oluştur</button>
+</form>
+<a class="kayit-geri" href="index.html">← Anasayfaya dön</a>
+</div>
+<div id="kayitSayfaAdim2" class="kayit-adim hidden">
+<div class="kayit-hero-mini"><b id="kayitKanalYazi">telefonunuza</b> <b id="kayitHedefYazi"></b> adresine gönderilen 6 haneli doğrulama kodunu girin. Kod 15 dakika geçerlidir.</div>
+<form onsubmit="kayitSayfasiDogrula(event)">
+<label class="kayit-etiket">Doğrulama kodu</label>
+<input id="kayitKodSayfa" required maxlength="6" inputmode="numeric" class="girdi kayit-code" placeholder="••••••" autocomplete="one-time-code" />
+<button class="btn btn-birincil w-full justify-center mt-4">Doğrula ve devam et</button>
+<button id="kayitKodTekrar" type="button" class="btn btn-ikincil w-full justify-center mt-2" onclick="kayitSayfasiKodTekrar()">Kodu tekrar gönder (60)</button>
+</form>
+<div id="kayitDogrulamaDurum" class="kayit-durum mt-2"></div>
+<a class="kayit-geri" href="kayit.html">← Kayıt bilgilerini değiştir</a>
+</div>
+</section>
+</div>
+</main>
+<script src="js/app.bundle.js?v=1"></script>
+</body>
+</html>

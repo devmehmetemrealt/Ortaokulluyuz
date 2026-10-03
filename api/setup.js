@@ -93,6 +93,14 @@ const DDL = [
     nonce_hash CHAR(64) PRIMARY KEY, bitis TIMESTAMPTZ NOT NULL
   )`,
   `CREATE INDEX IF NOT EXISTS idx_guvenlik_nonce_bitis ON guvenlik_nonce (bitis)`,
+  `CREATE TABLE IF NOT EXISTS guvenlik_ip_yasak (
+    ip_hash CHAR(64) PRIMARY KEY,
+    bitis TIMESTAMPTZ NOT NULL,
+    sebep VARCHAR(64) NOT NULL DEFAULT 'devtools',
+    kanit JSONB NULL,
+    olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_guvenlik_ip_yasak_bitis ON guvenlik_ip_yasak (bitis)`,
   `CREATE TABLE IF NOT EXISTS ayarlar (anahtar TEXT PRIMARY KEY, deger TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS kullanici_tercih (
     kullanici_id INT NOT NULL, sinif SMALLINT NOT NULL, ders VARCHAR(32) NOT NULL DEFAULT '', kitap_id VARCHAR(32) NOT NULL DEFAULT '',

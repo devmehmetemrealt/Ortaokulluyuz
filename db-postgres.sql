@@ -146,3 +146,13 @@ CREATE TABLE IF NOT EXISTS guvenlik_nonce (
   bitis TIMESTAMPTZ NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_guvenlik_nonce_bitis ON guvenlik_nonce (bitis);
+
+
+CREATE TABLE IF NOT EXISTS guvenlik_ip_yasak (
+  ip_hash CHAR(64) PRIMARY KEY,
+  bitis TIMESTAMPTZ NOT NULL,
+  sebep VARCHAR(64) NOT NULL DEFAULT 'devtools',
+  kanit JSONB NULL,
+  olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_guvenlik_ip_yasak_bitis ON guvenlik_ip_yasak (bitis);

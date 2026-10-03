@@ -42,3 +42,7 @@ Body:
 PostgreSQL'de `sms_kullanim` tablosu oluşturulur. Başarılı gönderim öncesi bir slot ayrılır; sağlayıcı hatası olursa slot geri bırakılır. Varsayılan site içi aylık limit 250'dir.
 
 Telefon kayıt işleminde SMS gönderilemezse kullanıcı kaydı geri alınır; böylece SMS sağlayıcısı kurulmadan sahte/yarım hesap oluşmaz.
+
+
+### DevTools ban istisnası
+Vercel Environment Variables: `ADMIN_IP_ALLOWLIST` — virgülle ayrılmış public IP adresleri. Örnek: `203.0.113.10,198.51.100.7`. Bu listede olan IP adresleri DevTools banından muaftır. `DEVTOOLS_BAN_MINUTES` varsayılan 60 dakikadır.
