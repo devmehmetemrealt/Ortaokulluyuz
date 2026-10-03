@@ -91,6 +91,8 @@ const ISLEM_KODLARI = {
   'paylasimlar': 'a30',
   'paylasim-ekle': 'a31',
   'paylasim-sil': 'a32',
+  'avatar-guncelle': 'a35',
+  'avatar-sil': 'a36',
 };
 const KOD_ISLEMLERI = Object.fromEntries(Object.entries(ISLEM_KODLARI).map(([k, v]) => [v, k]));
 
@@ -149,10 +151,31 @@ async function oturum(req) {
   if (!c.ook_token) return null;
   try {
     const o = jwt.verify(c.ook_token, process.env.JWT_SECRET || 'degistirin');
-    const r = await pool().query('SELECT id, ad, eposta, telefon, rol FROM uyeler WHERE id = $1', [o.uid]);
+    const r = await pool().query('SELECT id, ad, eposta, telefon, rol, avatar, olusturma FROM uyeler WHERE id = $1', [o.uid]);
     return r.rows[0] || null;
   } catch (e) { return null; }
 }
+async function uyelerSemasiHazirla(client) {
+  await client.query('ALTER TABLE uyeler ADD COLUMN IF NOT EXISTS avatar TEXT NULL');
+}
+function avatarVerisiDogrula(avatar) {
+  if (avatar === null || avatar === undefined || avatar === '') return null;
+  if (typeof avatar !== 'string') throw new Error('Avatar verisi geçersiz.');
+  if (avatar.length > 290000) throw new Error('Avatar boyutu sınırı aşıldı.');
+  const m = avatar.match(/^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/]+={0,2})$/i);
+  if (!m) throw new Error('Avatar yalnızca PNG, JPG veya WebP olabilir.');
+  const buf = Buffer.from(m[2], 'base64');
+  if (!buf.length || buf.length > 220000) throw new Error('Avatar boyutu en fazla 220 KB olmalı.');
+  const mime = m[1].toLowerCase();
+  const magic = mime === 'image/png'
+    ? buf.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))
+    : mime === 'image/jpeg'
+      ? buf.subarray(0,3).equals(Buffer.from([255,216,255]))
+      : buf.subarray(0,4).toString('ascii') === 'RIFF' && buf.subarray(8,12).toString('ascii') === 'WEBP';
+  if (!magic) throw new Error('Avatar dosya türü doğrulanamadı.');
+  return avatar;
+}
+
 function rolAdiDB(r) {
   return r === 'ogretmen' ? 'Öğretmen' : (r === 'veli' ? 'Veli' : (r === 'admin' ? 'Yönetici' : 'Öğrenci'));
 }
@@ -328,11 +351,16 @@ async function guvenlikSemasiHazirla() {
       nonce_hash CHAR(64) PRIMARY KEY, bitis TIMESTAMPTZ NOT NULL
     )`);
     await p.query('CREATE INDEX IF NOT EXISTS idx_guvenlik_nonce_bitis ON guvenlik_nonce (bitis)');
+    await p.query(`CREATE TABLE IF NOT EXISTS sms_kullanim (
+      saglayici VARCHAR(24) NOT NULL, donem DATE NOT NULL, sayac INT NOT NULL DEFAULT 0,
+      guncelleme TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (saglayici, donem)
+    )`);
   })().catch((err) => { _guvenlikSchemaReady = null; throw err; });
   return _guvenlikSchemaReady;
 }
 
-// ---------- telefon (NetGSM SMS) ----------
+// ---------- telefon (TextBee / NetGSM SMS) ----------
 function telefonNormalize(t) {
   t = String(t || '').replace(/\D/g, '');
   if (t.length === 11 && t[0] === '0') t = t.slice(1);
@@ -340,9 +368,77 @@ function telefonNormalize(t) {
   if (t.length === 12 && t.startsWith('90') && t[2] === '5') return '+' + t;
   return null;
 }
-async function smsGonder(tel, metin) {
-  const mod = process.env.SMS_MODU || 'kapali';
-  if (mod === 'kapali' || mod === 'off') return [false, 'SMS servisi kapalı (SMS_MODU).'];
+
+function textBeeAyarliMi() {
+  return !!String(process.env.TEXTBEE_API_KEY || '').trim();
+}
+
+async function smsKotasiAyir(client, saglayici) {
+  const limit = Math.max(1, Number.parseInt(process.env.TEXTBEE_MONTHLY_LIMIT || '250', 10) || 250);
+  const d = new Date();
+  const donem = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString().slice(0, 10);
+  await client.query(
+    `INSERT INTO sms_kullanim (saglayici, donem, sayac) VALUES ($1,$2,0)
+     ON CONFLICT (saglayici, donem) DO NOTHING`,
+    [saglayici, donem]
+  );
+  const r = await client.query(
+    `UPDATE sms_kullanim
+        SET sayac = sayac + 1, guncelleme = NOW()
+      WHERE saglayici = $1 AND donem = $2 AND sayac < $3
+      RETURNING sayac`,
+    [saglayici, donem, limit]
+  );
+  return r.rows.length ? { ayrildi: true, sayac: Number(r.rows[0].sayac), limit } : { ayrildi: false, sayac: limit, limit };
+}
+
+async function smsKotasiIade(client, saglayici) {
+  const d = new Date();
+  const donem = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString().slice(0, 10);
+  await client.query(
+    `UPDATE sms_kullanim SET sayac = GREATEST(0, sayac - 1), guncelleme = NOW()
+      WHERE saglayici = $1 AND donem = $2`,
+    [saglayici, donem]
+  );
+}
+
+async function textBeeSmsGonder(client, tel, metin) {
+  const anahtar = String(process.env.TEXTBEE_API_KEY || '').trim();
+  const deviceId = String(process.env.TEXTBEE_DEVICE_ID || '6ac0ca5acf8e7692e0fc5ede').trim();
+  if (!anahtar) return [false, 'TextBee API anahtarı girilmedi (Vercel TEXTBEE_API_KEY).'];
+  if (!deviceId) return [false, 'TextBee cihaz kimliği girilmedi.'];
+
+  const kota = await smsKotasiAyir(client, 'textbee');
+  if (!kota.ayrildi) return [false, `TextBee aylık SMS limitinize ulaşıldı (${kota.limit}).`];
+
+  try {
+    const r = await fetch('https://api.textbee.dev/api/v1/gateway/send-sms', {
+      method: 'POST',
+      headers: {
+        'x-api-key': anahtar,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        deviceId,
+        recipients: [tel],
+        message: metin
+      })
+    });
+    const ham = await r.text().catch(() => '');
+    let veri = null;
+    try { veri = ham ? JSON.parse(ham) : null; } catch (e) {}
+    if (r.ok) return [true, '', veri];
+    await smsKotasiIade(client, 'textbee');
+    const detay = veri && (veri.message || veri.error || veri.detail);
+    return [false, 'TextBee hatası (HTTP ' + r.status + '): ' + String(detay || ham || 'Bilinmeyen hata').slice(0, 220)];
+  } catch (e) {
+    await smsKotasiIade(client, 'textbee').catch(() => {});
+    return [false, 'TextBee bağlantısı kurulamadı: ' + e.message];
+  }
+}
+
+async function netGsmSmsGonder(tel, metin) {
   const uk = process.env.NETGSM_USERCODE || '';
   const ps = process.env.NETGSM_PASSWORD || '';
   const baslik = process.env.NETGSM_HEADER || '';
@@ -356,6 +452,14 @@ async function smsGonder(tel, metin) {
     if (t.startsWith('00')) return [true, ''];
     return [false, 'NetGSM hatası: ' + t.slice(0, 120)];
   } catch (e) { return [false, 'SMS bağlantısı kurulamadı: ' + e.message]; }
+}
+
+async function smsGonder(client, tel, metin) {
+  const mod = String(process.env.SMS_MODU || (textBeeAyarliMi() ? 'textbee' : 'kapali')).toLowerCase();
+  if (mod === 'kapali' || mod === 'off') return [false, 'SMS servisi kapalı. Vercel TEXTBEE_API_KEY girin.'];
+  if (mod === 'textbee') return textBeeSmsGonder(client, tel, metin);
+  if (mod === 'netgsm') return netGsmSmsGonder(tel, metin);
+  return [false, 'Bilinmeyen SMS sağlayıcısı. SMS_MODU=textbee veya netgsm kullanın.'];
 }
 
 // ---------- e-posta (Brevo HTTPS API) ----------
@@ -397,7 +501,7 @@ async function dogrulamaSmsGonder(client, tel, ad) {
   const bitis = new Date(Date.now() + 15 * 60 * 1000).toISOString();
   await client.query('INSERT INTO dogrulama (eposta, kod_hash, bitis) VALUES ($1,$2,$3)',
     [tel, await bcrypt.hash(kod, 10), bitis]);
-  return smsGonder(tel, 'Ortaokulluyuz dogrulama kodunuz: ' + kod + ' (15 dakika gecerli)');
+  return smsGonder(client, tel, 'Ortaokulluyuz dogrulama kodunuz: ' + kod + ' (15 dakika gecerli)');
 }
 
 // ---------- yönlendirici ----------
@@ -423,6 +527,7 @@ module.exports = async (req, res) => {
 
   try {
     await guvenlikSemasiHazirla();
+    await uyelerSemasiHazirla(client);
     if (gateway && !await gatewayTekrarKontrol(client, req, rawGovde)) return hata(res, 'Geçersiz veya tekrarlanan istek.', 409, 'REQUEST_REJECTED');
     const globalLimit = await rateLimit(client, req, 'genel', 240, 1);
     if (!globalLimit) return hata(res, 'Çok fazla istek gönderildi. Biraz sonra tekrar deneyin.', 429, 'RATE_LIMIT');
@@ -444,7 +549,9 @@ module.exports = async (req, res) => {
       'sesli-arama-teklif': [40, 1],
       'sesli-arama-yanit': [40, 1],
       'sesli-arama-sinyal': [90, 1],
-      'sikayet-et': [10, 10]
+      'sikayet-et': [10, 10],
+      'avatar-guncelle': [6, 10],
+      'avatar-sil': [6, 10]
     };
     if (ozelLimit[islem]) {
       const [limit, dakika] = ozelLimit[islem];
@@ -530,7 +637,7 @@ module.exports = async (req, res) => {
         const telDogrula = telefonNormalize(hedef);
         hedef = telDogrula || hedef.toLowerCase();
         const kod = String(g('kod', '')).trim();
-        const u = (await client.query('SELECT id, ad, eposta, rol FROM uyeler WHERE eposta = $1 OR telefon = $1', [hedef])).rows[0];
+        const u = (await client.query('SELECT id, ad, eposta, rol, avatar, olusturma FROM uyeler WHERE eposta = $1 OR telefon = $1', [hedef])).rows[0];
         if (!u) return hata(res, 'Kayıt bulunamadı.', 404);
         const d = (await client.query('SELECT * FROM dogrulama WHERE eposta = $1 ORDER BY id DESC LIMIT 1', [hedef])).rows[0];
         if (!d) return hata(res, 'Kod bulunamadı. Yeni kod isteyin.');
@@ -570,7 +677,7 @@ module.exports = async (req, res) => {
         const telGiris = telefonNormalize(girisHedef);
         const anahtar = telGiris || girisHedef.toLowerCase();
         const sifre = String(g('sifre', ''));
-        const u = (await client.query('SELECT id, ad, eposta, telefon, parola, rol, eposta_onay FROM uyeler WHERE eposta = $1 OR telefon = $1', [anahtar])).rows[0];
+        const u = (await client.query('SELECT id, ad, eposta, telefon, parola, rol, eposta_onay, avatar, olusturma FROM uyeler WHERE eposta = $1 OR telefon = $1', [anahtar])).rows[0];
         if (!u) return hata(res, 'Bu bilgilerle kayıt bulunamadı. Önce kayıt olun.', 404);
         if (!(await bcrypt.compare(sifre, u.parola))) return hata(res, 'Şifre hatalı. Tekrar deneyin.', 401);
         if (!u.eposta_onay) return hata(res, 'E-POSTA-DOGRULAMA-GEREK:Hesabınıza gönderilen 6 haneli kodu girerek doğrulayın.', 403);
@@ -588,12 +695,23 @@ module.exports = async (req, res) => {
         if (sifre.length < 4) return hata(res, 'Şifre en az 4 karakter olmalı.');
         const mevcut = await client.query('SELECT id FROM uyeler WHERE telefon = $1 OR eposta = $1', [tel]);
         if (mevcut.rows.length) return hata(res, 'Bu telefon ile zaten kayıt var.');
-        const ek = await client.query(
-          'INSERT INTO uyeler (ad, eposta, parola, rol, eposta_onay, telefon) VALUES ($1,NULL,$2,\'ogrenci\',FALSE,$3) RETURNING id',
-          [ad, await bcrypt.hash(sifre, 10), tel]);
-        const [gonderildi, pm] = await dogrulamaSmsGonder(client, tel, ad);
-        return gonder(res, 200, { ok: true, dogrulama_gerekli: true, hedef: tel,
-          posta_gonderildi: gonderildi, posta_hatasi: gonderildi ? '' : pm });
+        await client.query('BEGIN');
+        try {
+          await client.query(
+            'INSERT INTO uyeler (ad, eposta, parola, rol, eposta_onay, telefon) VALUES ($1,NULL,$2,\'ogrenci\',FALSE,$3)',
+            [ad, await bcrypt.hash(sifre, 10), tel]);
+          const [gonderildi, pm] = await dogrulamaSmsGonder(client, tel, ad);
+          if (!gonderildi) {
+            await client.query('ROLLBACK');
+            return hata(res, 'SMS gönderilemedi: ' + pm, 502, 'SMS_SEND_FAILED');
+          }
+          await client.query('COMMIT');
+          return gonder(res, 200, { ok: true, dogrulama_gerekli: true, hedef: tel,
+            posta_gonderildi: true, posta_hatasi: '' });
+        } catch (e) {
+          await client.query('ROLLBACK').catch(() => {});
+          throw e;
+        }
       }
 
       case 'google-giris': {
@@ -610,10 +728,10 @@ module.exports = async (req, res) => {
         if (dog.email_verified !== 'true' && dog.email_verified !== true) return hata(res, 'Google e-postası doğrulanmamış.');
         const eposta = String(dog.email || '').toLowerCase();
         const ad = String(dog.name || eposta.split('@')[0]).slice(0, 120);
-        let u = (await client.query('SELECT id, ad, eposta, rol FROM uyeler WHERE eposta = $1', [eposta])).rows[0];
+        let u = (await client.query('SELECT id, ad, eposta, rol, avatar, olusturma FROM uyeler WHERE eposta = $1', [eposta])).rows[0];
         if (!u) {
           const ek = await client.query(
-            "INSERT INTO uyeler (ad, eposta, parola, rol, eposta_onay) VALUES ($1,$2,'-','ogrenci',FALSE) RETURNING id, ad, eposta, rol",
+            "INSERT INTO uyeler (ad, eposta, parola, rol, eposta_onay) VALUES ($1,$2,'-','ogrenci',FALSE) RETURNING id, ad, eposta, rol, avatar, olusturma",
             [ad, eposta]);
           u = ek.rows[0];
         }
@@ -626,7 +744,7 @@ module.exports = async (req, res) => {
         return gonder(res, 200, { ok: true,
           google: !!(process.env.GOOGLE_CLIENT_ID),
           googleClientId: process.env.GOOGLE_CLIENT_ID || '',
-          sms: (process.env.SMS_MODU || 'kapali') !== 'kapali',
+          sms: String(process.env.SMS_MODU || (textBeeAyarliMi() ? 'textbee' : 'kapali')).toLowerCase() !== 'kapali',
           eposta: (process.env.EMAIL_MODE || 'brevo') !== 'kapali' });
       }
 
@@ -634,6 +752,21 @@ module.exports = async (req, res) => {
         jetonSil(res, req);
         guvenlikCerezSil(res, req);
         return gonder(res, 200, { ok: true });
+
+      case 'avatar-guncelle': {
+        const k = await oturum(req);
+        if (!k) return hata(res, 'Bu işlem için giriş yapmalısınız.', 401);
+        const avatar = avatarVerisiDogrula(g('avatar', null));
+        await client.query('UPDATE uyeler SET avatar = $1 WHERE id = $2', [avatar, k.id]);
+        return gonder(res, 200, { ok: true, avatar });
+      }
+
+      case 'avatar-sil': {
+        const k = await oturum(req);
+        if (!k) return hata(res, 'Bu işlem için giriş yapmalısınız.', 401);
+        await client.query('UPDATE uyeler SET avatar = NULL WHERE id = $1', [k.id]);
+        return gonder(res, 200, { ok: true, avatar: null });
+      }
 
       case 'sifre-degistir': {
         const k = await oturum(req);
@@ -647,7 +780,7 @@ module.exports = async (req, res) => {
       case 'uyeler': {
         const k = await oturum(req);
         if (!k || k.rol !== 'admin') return hata(res, 'Yetkisiz işlem.', 403);
-        const l = await client.query('SELECT id, ad, eposta, telefon, rol, eposta_onay, olusturma FROM uyeler ORDER BY olusturma DESC');
+        const l = await client.query('SELECT id, ad, eposta, telefon, rol, eposta_onay, olusturma, avatar FROM uyeler ORDER BY olusturma DESC');
         return gonder(res, 200, { ok: true, uyeler: l.rows });
       }
 
@@ -956,7 +1089,7 @@ module.exports = async (req, res) => {
       case 'kisiler': {
         const k = await oturum(req);
         if (!k) return hata(res, 'Bu işlem için giriş yapmalısınız.', 401);
-        const l = await client.query('SELECT id, ad, rol FROM uyeler WHERE id != $1 ORDER BY ad ASC LIMIT 200', [k.id]);
+        const l = await client.query('SELECT id, ad, rol, avatar FROM uyeler WHERE id != $1 ORDER BY ad ASC LIMIT 200', [k.id]);
         return gonder(res, 200, { ok: true, kisiler: l.rows });
       }
 
@@ -964,7 +1097,7 @@ module.exports = async (req, res) => {
         const k = await oturum(req);
         if (!k) return hata(res, 'Bu işlem için giriş yapmalısınız.', 401);
         const l = await client.query(
-          'SELECT m.*, g.ad AS g_ad, a.ad AS a_ad FROM mesajlar m LEFT JOIN uyeler g ON g.id = m.gonderen_id LEFT JOIN uyeler a ON a.id = m.alici_id WHERE m.gonderen_id = $1 OR m.alici_id = $1 ORDER BY m.olusturma DESC LIMIT 500',
+          'SELECT m.*, g.ad AS g_ad, g.avatar AS g_avatar, a.ad AS a_ad, a.avatar AS a_avatar FROM mesajlar m LEFT JOIN uyeler g ON g.id = m.gonderen_id LEFT JOIN uyeler a ON a.id = m.alici_id WHERE m.gonderen_id = $1 OR m.alici_id = $1 ORDER BY m.olusturma DESC LIMIT 500',
           [k.id]);
         const sohbet = {};
         l.rows.forEach((m) => {
@@ -973,7 +1106,7 @@ module.exports = async (req, res) => {
             sohbet[karsi] = {
               karsi_id: karsi,
               karsi_ad: (Number(m.gonderen_id) === Number(k.id) ? m.a_ad : m.g_ad) || 'Silinmiş Üye',
-              son_metin: m.metin, son_zaman: m.olusturma, okunmamis: 0,
+              son_metin: m.metin, son_zaman: m.olusturma, karsi_avatar: (Number(m.gonderen_id) === Number(k.id) ? m.a_avatar : m.g_avatar) || null, okunmamis: 0,
             };
           }
           if (Number(m.alici_id) === Number(k.id) && !m.okundu) sohbet[karsi].okunmamis++;
@@ -987,7 +1120,7 @@ module.exports = async (req, res) => {
         const k = await oturum(req);
         if (!k) return hata(res, 'Bu işlem için giriş yapmalısınız.', 401);
         const karsi = Number(g('karsi_id', 0));
-        const kk = (await client.query('SELECT id, ad, rol FROM uyeler WHERE id = $1', [karsi])).rows[0];
+        const kk = (await client.query('SELECT id, ad, rol, avatar FROM uyeler WHERE id = $1', [karsi])).rows[0];
         if (!kk) return hata(res, 'Kullanıcı bulunamadı.', 404);
         const l = await client.query(
           'SELECT id, gonderen_id, alici_id, metin, okundu, olusturma FROM mesajlar WHERE (gonderen_id = $1 AND alici_id = $2) OR (gonderen_id = $2 AND alici_id = $1) ORDER BY olusturma ASC LIMIT 300',

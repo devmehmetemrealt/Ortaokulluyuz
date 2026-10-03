@@ -34,10 +34,13 @@ ADIM 3 - VERCEL'E BAĞLAYIN
        SENDER_NAME        = Ortaokulluyuz
        GOOGLE_CLIENT_ID   = Google Cloud'dan alınan web istemci kimliği
                             (boş bırakılırsa Google düğmesi görünmez)
-       SMS_MODU           = kapali  (NetGSM kullanacaksanız: netgsm)
-       NETGSM_USERCODE    = NetGSM kullanıcı adı (usercode)
-       NETGSM_PASSWORD    = NetGSM şifresi
-       NETGSM_HEADER      = NetGSM'de onaylı mesaj başlığı (örn. ORTAOKUL)
+       SMS_MODU           = textbee  (boş bırakırsanız TEXTBEE_API_KEY varsa otomatik textbee)
+       TEXTBEE_API_KEY    = TextBee Dashboard > API Keys bölümünden
+       TEXTBEE_DEVICE_ID  = 6ac0ca5acf8e7692e0fc5ede  (cihazınız değişirse güncelleyin)
+       TEXTBEE_MONTHLY_LIMIT = 250  (opsiyonel; varsayılan 250)
+       NETGSM_USERCODE    = yalnızca NetGSM kullanacaksanız
+       NETGSM_PASSWORD    = yalnızca NetGSM kullanacaksanız
+       NETGSM_HEADER      = yalnızca NetGSM kullanacaksanız
   4. Deploy'a basın. 1-2 dakikada siteniz yayında olur.
 
 ADIM 3B - GOOGLE İLE GİRİŞ (isteğe bağlı)
@@ -52,10 +55,13 @@ ADIM 3B - GOOGLE İLE GİRİŞ (isteğe bağlı)
      giriş yapanın e-postasına yine doğrulama kodu gider; kodu giren
      hesaba bağlanır (yeni ise hesabı otomatik açılır).
 
-ADIM 3C - TELEFONLA KAYIT / SMS (isteğe bağlı, ÜCRETLİ)
-  Varsayılan kapalıdır (SMS_MODU tanımsız) ve kayıt ekranında telefon
-  sekmesi görünmez; hiçbir ücret oluşmaz. Açmak isterseniz NetGSM'den
-  hat + onaylı başlık alıp SMS_MODU=netgsm ve NETGSM_* değerlerini girin.
+ADIM 3C - TELEFONLA KAYIT / SMS (isteğe bağlı)
+  TextBee kullanımı için Vercel'de TEXTBEE_API_KEY girin. SMS_MODU=textbee
+  yazabilirsiniz; SMS_MODU boş bırakılırsa anahtar bulunduğunda otomatik açılır.
+  TEXTBEE_DEVICE_ID örnek olarak 6ac0ca5acf8e7692e0fc5ede verilmiştir.
+  Bu sistem her ay varsayılan 250 SMS'i DB tarafında ayrıca sınırlar; dış
+  servis kotanız daha düşükse TEXTBEE_MONTHLY_LIMIT ile azaltabilirsiniz.
+  API anahtarını asla frontend'e koymayın.
 
 EK A - KURUMSAL E-POSTA (info@alanadiniz)
   NOT: x.dpdns.org gibi baskasina ait alan adinin alt adresinde DNS

@@ -23,7 +23,7 @@ const YerelAuth = {
       const o = JSON.parse(localStorage.getItem(this.key));
       if (!o) return null;
       const k = this.tumKullanicilar().find(u => u.id === o.id);
-      return k ? { id: k.id, ad: k.ad, eposta: k.eposta, rol: k.rol, tarih: k.tarih } : null;
+      return k ? { id: k.id, ad: k.ad, eposta: k.eposta, rol: k.rol, tarih: k.tarih, avatar: k.avatar || null } : null;
     } catch (e) { return null; }
   },
   tumKullanicilar() {
@@ -229,6 +229,26 @@ const Auth = {
       return j.ok ? { ok: true } : { hata: j.hata || "Tanımlanamadı." };
     }
     return YerelAuth.sifreSifirla(kullaniciId, yeniSifre);
+  },
+  async avatarGuncelle(avatar) {
+    if (this._uzak) {
+      const j = await API.sor('avatar-guncelle', { avatar });
+      if (!j.ok) return { hata: j.hata || 'Avatar güncellenemedi.' };
+      if (this._oturum) this._oturum.avatar = j.avatar || null;
+      return { ok: true, avatar: j.avatar || null };
+    }
+    const k = YerelAuth.mevcut();
+    if (!k) return { hata: 'Giriş yapmalısınız.' };
+    const users = YerelAuth.tumKullanicilar();
+    const kayit = users.find(x => String(x.id) === String(k.id));
+    if (!kayit) return { hata: 'Kullanıcı bulunamadı.' };
+    kayit.avatar = avatar || null;
+    YerelAuth._kaydet(users);
+    localStorage.setItem(YerelAuth.key, JSON.stringify({ id: kayit.id, ad: kayit.ad, eposta: kayit.eposta, rol: kayit.rol, tarih: kayit.tarih, avatar: kayit.avatar }));
+    return { ok: true, avatar: kayit.avatar };
+  },
+  async avatarSil() {
+    return this.avatarGuncelle(null);
   },
   async parolaDegistir(yeniSifre) {
     if (this._uzak) {

@@ -29,7 +29,7 @@ const Mesaj = {
     tum.sort((a, b) => (a.tarih < b.tarih ? 1 : -1));
     for (const m of tum) {
       const karsi = String(m.gonderen_id) === String(ben.id) ? m.alici_id : m.gonderen_id;
-      if (!harita[karsi]) harita[karsi] = { karsi_id: karsi, karsi_ad: adBul(karsi), son_metin: m.metin, son_zaman: m.tarih, okunmamis: 0 };
+      if (!harita[karsi]) harita[karsi] = { karsi_id: karsi, karsi_ad: adBul(karsi), karsi_avatar: (YerelAuth.tumKullanicilar().find(x => String(x.id) === String(karsi)) || {}).avatar || null, son_metin: m.metin, son_zaman: m.tarih, okunmamis: 0 };
       if (String(m.alici_id) === String(ben.id) && !m.okundu) harita[karsi].okunmamis++;
     }
     const liste = Object.values(harita);
@@ -44,7 +44,7 @@ const Mesaj = {
     }
     return YerelAuth.tumKullanicilar()
       .filter(u => String(u.id) !== String(ben && ben.id))
-      .map(u => ({ id: u.id, ad: u.ad, rol: u.rol }));
+      .map(u => ({ id: u.id, ad: u.ad, rol: u.rol, avatar: u.avatar || null }));
   },
   async getir(karsiId) {
     const ben = Auth.mevcut();

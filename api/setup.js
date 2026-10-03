@@ -12,7 +12,8 @@ const DDL = [
     rol VARCHAR(16) NOT NULL DEFAULT 'ogrenci' CHECK (rol IN ('ogrenci','ogretmen','veli','admin')),
     eposta_onay BOOLEAN NOT NULL DEFAULT TRUE,
     telefon VARCHAR(20) NULL UNIQUE,
-    olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    avatar TEXT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS sorular (
     id SERIAL PRIMARY KEY,
@@ -63,6 +64,10 @@ const DDL = [
     bitis TIMESTAMPTZ NOT NULL, olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`,
   `CREATE INDEX IF NOT EXISTS idx_dogrulama_eposta ON dogrulama (eposta)`,
+  `CREATE TABLE IF NOT EXISTS sms_kullanim (
+    saglayici VARCHAR(24) NOT NULL, donem DATE NOT NULL, sayac INT NOT NULL DEFAULT 0,
+    guncelleme TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY (saglayici, donem)
+  )`,
   `CREATE TABLE IF NOT EXISTS paylasimlar (
     id SERIAL PRIMARY KEY,
     sinif SMALLINT NOT NULL, ders VARCHAR(32) NOT NULL, unite VARCHAR(120) NOT NULL DEFAULT '',
@@ -169,6 +174,7 @@ module.exports = async (req, res) => {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
   try {
     for (const sql of DDL) await pool.query(sql);
+    await pool.query('ALTER TABLE uyeler ADD COLUMN IF NOT EXISTS avatar TEXT NULL');
     await pool.query('ALTER TABLE uyeler ALTER COLUMN eposta DROP NOT NULL').catch(() => {});
     await pool.query('ALTER TABLE uyeler ADD COLUMN IF NOT EXISTS telefon VARCHAR(20)').catch(() => {});
     await pool.query("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_uyeler_telefon') THEN ALTER TABLE uyeler ADD CONSTRAINT uq_uyeler_telefon UNIQUE (telefon); END IF; END $$").catch(() => {});

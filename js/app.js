@@ -241,7 +241,7 @@ async function mesajlariCiz() {
         <div class="sohbet-liste">
           ${veri.sohbetler.map(s => `
             <button class="sohbet-oge ${String(Mesaj._acikSohbet) === String(s.karsi_id) ? "aktif" : ""}" data-karsi="${s.karsi_id}" onclick="sohbetAc('${s.karsi_id}')">
-              <span class="sohbet-ad">${kac(s.karsi_ad)} ${s.okunmamis ? `<span class="sayac">${s.okunmamis}</span>` : ""}</span>
+              ${avatarHTML(s.karsi_ad, s.karsi_avatar, "sohbet-avatar")}<span class="sohbet-ad">${kac(s.karsi_ad)} ${s.okunmamis ? `<span class="sayac">${s.okunmamis}</span>` : ""}</span>
               <span class="sohbet-son">${kac(String(s.son_metin).slice(0, 48))}${s.son_metin.length > 48 ? "…" : ""}</span>
             </button>`).join("") || `<div class="text-[13px] text-slate-400 p-2">Henüz sohbet yok. Aşağıdan kişi seçerek başlayın.</div>`}
         </div>
@@ -292,7 +292,7 @@ function sohbetAcIcerik(v) {
   const alan = document.getElementById("mesajPencere");
   if (!alan) return;
   alan.innerHTML =
-    `<div class="mesaj-karsi mesaj-karsi-ust"><div><b>${kac(v.karsi.ad)}</b><span>Özel sohbet</span></div><div class="mesaj-karsi-aksiyon"><button class="arac-btn" title="Sesli ara" data-sesli-id="${kac(v.karsi.id)}" data-sesli-ad="${kac(v.karsi.ad)}" onclick="Sesli.araFromButton(this)">🎙️ Sesli ara</button></div></div>` +
+    `<div class="mesaj-karsi mesaj-karsi-ust"><div class="mesaj-karsi-kimlik">${avatarHTML(v.karsi.ad, v.karsi.avatar, "mesaj-karsi-avatar")}<div><b>${kac(v.karsi.ad)}</b><span>Özel sohbet</span></div></div><div class="mesaj-karsi-aksiyon"><button class="arac-btn" title="Sesli ara" data-sesli-id="${kac(v.karsi.id)}" data-sesli-ad="${kac(v.karsi.ad)}" onclick="Sesli.araFromButton(this)">🎙️ Sesli ara</button></div></div>` +
     (v.mesajlar.map(m => `
       <div class="balon-satir ${m.giden ? "giden" : "gelen"}" data-mid="${m.id}">
         <div class="balon">${kac(m.metin)}
@@ -442,7 +442,7 @@ const SohbetCanli = {
     if (!liste) return;
     liste.innerHTML = sohbetler.map(s => `
       <button class="sohbet-oge ${String(Mesaj._acikSohbet) === String(s.karsi_id) ? "aktif" : ""}" data-karsi="${s.karsi_id}" onclick="sohbetAc('${s.karsi_id}')">
-        <span class="sohbet-ad">${kac(s.karsi_ad)} ${s.okunmamis ? `<span class="sayac">${s.okunmamis}</span>` : ""}</span>
+        ${avatarHTML(s.karsi_ad, s.karsi_avatar, "sohbet-avatar")}<span class="sohbet-ad">${kac(s.karsi_ad)} ${s.okunmamis ? `<span class="sayac">${s.okunmamis}</span>` : ""}</span>
         <span class="sohbet-son">${kac(String(s.son_metin).slice(0, 48))}${s.son_metin.length > 48 ? "…" : ""}</span>
       </button>`).join("") || `<div class="text-[13px] text-slate-400 p-2">Henüz sohbet yok. Aşağıdan kişi seçerek başlayın.</div>`;
   }
@@ -636,13 +636,13 @@ function ustBarGuncelle() {
     const bas = kac(String(k.ad || "K").trim().split(/\s+/).slice(0,2).map(x => x[0] || "").join("").toUpperCase() || "K");
     alan.innerHTML = `<details class="kullanici-menu">
       <summary class="kullanici-menu-ozet" aria-label="Kullanıcı menüsü">
-        <span class="kullanici-avatar">${bas}</span>
+        ${avatarHTML(k.ad, k.avatar, "kullanici-avatar")}
         <span class="kullanici-metin"><b>${ad}</b><small>${k.rol === "admin" ? "Yönetici" : rolAdi(k.rol)}</small></span>
         <span class="kullanici-chevron" aria-hidden="true">⌄</span>
       </summary>
       <div class="kullanici-panel">
         <div class="kullanici-panel-ust">
-          <div class="kullanici-panel-avatar">${bas}</div>
+          <div class="kullanici-panel-avatar-wrap">${avatarHTML(k.ad, k.avatar, "kullanici-panel-avatar")}<span class="avatar-panel-dot"></span></div>
           <div><strong>${ad}</strong><span>${k.eposta ? kac(k.eposta) : rolAdi(k.rol)}</span></div>
         </div>
         <div class="kullanici-menu-linkleri">
@@ -683,12 +683,40 @@ async function profilCiz() {
     return `<div class="profil-odak-satir"><div class="profil-odak-bas"><span>${x.sinif}. Sınıf</span><b>${yuzde}%</b></div><div class="profil-odak-bar"><span style="width:${yuzde}%"></span></div></div>`;
   }).join("");
   alan.innerHTML = `
-    <div class="profil-hero-card"><div class="profil-hero-glow"></div><div class="profil-avatar">${bas}</div><div class="profil-hero-copy"><span class="profil-kicker">KİŞİSEL ÇALIŞMA ALANI</span><h2>${kac(k.ad || "Kullanıcı")}</h2><p>${kac(rolAdi(k.rol))}${k.olusturma || k.tarih ? " · " + tarihKisa(k.olusturma || k.tarih) + " tarihinden beri" : ""}</p></div><div class="profil-hero-actions"><a class="btn btn-ikincil btn-kucuk" href="kitaplar.html">Kitaplara git</a><a class="btn btn-birincil btn-kucuk" href="forum.html">Foruma git</a></div></div>
+    <div class="profil-hero-card"><div class="profil-hero-glow"></div><div class="profil-avatar-wrap">${avatarHTML(k.ad, k.avatar, "profil-avatar")}<button type="button" class="profil-avatar-degistir" onclick="avatarDosyasiAc()" title="Avatarı değiştir">✦<span>Değiştir</span></button><input id="avatarDosyasi" type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" onchange="avatarYukle(this.files[0])" /></div><div class="profil-hero-copy"><span class="profil-kicker">KİŞİSEL ÇALIŞMA ALANI</span><h2>${kac(k.ad || "Kullanıcı")}</h2><p>${kac(rolAdi(k.rol))}${k.olusturma || k.tarih ? " · " + tarihKisa(k.olusturma || k.tarih) + " tarihinden beri" : ""}</p></div><div class="profil-hero-actions"><a class="btn btn-ikincil btn-kucuk" href="kitaplar.html">Kitaplara git</a><a class="btn btn-birincil btn-kucuk" href="forum.html">Foruma git</a></div></div>
+    <div class="profil-avatar-info"><div><span class="profil-panel-kicker">PROFİL GÖRSELİ</span><b>Avatarını kişiselleştir</b><small>PNG, JPG veya WebP · En fazla 220 KB'a sıkıştırılır.</small></div><div class="profil-avatar-actions"><button class="btn btn-birincil btn-kucuk" type="button" onclick="avatarDosyasiAc()">Fotoğraf seç</button><button class="btn btn-ikincil btn-kucuk" type="button" onclick="avatarSil()">Sıfırla</button></div></div>
     <div class="profil-metrik-grid"><div class="profil-metrik"><div class="profil-metrik-ikon pembe">${ikonYildiz(true,18)}</div><div><strong>${favs.length}</strong><span>Favori kitap</span></div></div><div class="profil-metrik"><div class="profil-metrik-ikon mavi">${ikon("yorum",18)}</div><div><strong>${sorular.length}</strong><span>Forum sorusu</span></div></div><div class="profil-metrik"><div class="profil-metrik-ikon turuncu">${ikon("kalem",18)}</div><div><strong>${notSayisi}</strong><span>Sayfa notu</span></div></div><div class="profil-metrik"><div class="profil-metrik-ikon mor">${ikon("kitap",18)}</div><div><strong>${odakSinif ? odakSinif + ". sınıf" : "Genel"}</strong><span>Çalışma odağı</span></div></div></div>
     <div class="profil-iki-kolon"><section class="profil-panel"><div class="profil-panel-ust"><div><span class="profil-panel-kicker">KÜTÜPHANE</span><h3>Favori kitapların</h3></div><span class="profil-panel-sayi">${favs.length}</span></div><div class="profil-kitap-listesi">${favs.slice(0,6).map(f => `<button class="profil-kitap-oge" onclick="Reader.ac('${f.id}')"><span class="profil-kitap-kapak"><img src="${f.kapak || f.gorsel || ''}" alt="" loading="lazy"></span><span class="profil-kitap-bilgi"><b>${kac(f.baslik)}</b><small>${kac(dersAdi(f.ders,f.sinif) || "Ders kitabı")} · ${f.sinif}. sınıf</small></span><span class="profil-kitap-ok">→</span></button>`).join("") || `<div class="profil-bos"><strong>Henüz favori kitabın yok.</strong><span>Beğendiğin kitapları ⭐ ile işaretlediğinde burada görünecek.</span><a href="kitaplar.html">Kitaplara göz at →</a></div>`}</div></section>
     <section class="profil-panel profil-odak"><div class="profil-panel-ust"><div><span class="profil-panel-kicker">KİŞİSELLEŞTİRME</span><h3>Çalışma odağın</h3></div><span class="profil-panel-sayi">${odakSinif ? odakSinif + ". sınıf" : "Yeni"}</span></div><p class="profil-panel-aciklama">Gezdiğin sınıf ve dersler önerilerini etkiliyor. Aşağıdaki dağılım son etkileşimlerinin özetidir.</p>${sinifKartlari || `<div class="profil-bos"><span>Henüz yeterli veri oluşmadı.</span><a href="kitaplar.html">Bir sınıf seç →</a></div>`}</section></div>
     <div class="profil-iki-kolon"><section class="profil-panel"><div class="profil-panel-ust"><div><span class="profil-panel-kicker">FORUM</span><h3>Son soruların</h3></div><a class="profil-panel-link" href="forum.html">Tümünü gör →</a></div><div class="profil-soru-listesi">${sorular.slice(0,5).map(s2 => `<button class="profil-soru-oge" onclick="soruDetay('${s2.id}')"><span class="profil-soru-num">?</span><span><b>${kac(s2.baslik)}</b><small>${kac(s2.ders || "Forum")}</small></span><em>→</em></button>`).join("") || `<div class="profil-bos"><strong>Henüz forum sorusu yok.</strong><span>Takıldığın yeri paylaş, yanıtları profilinden takip et.</span><a href="forum.html">Forumda soru sor →</a></div>`}</div></section>
     <section class="profil-panel profil-guvenlik"><div class="profil-panel-ust"><div><span class="profil-panel-kicker">HESAP</span><h3>Hesap güvenliği</h3></div><span class="guvenlik-durum">${ikon("tik",11)} Aktif</span></div><p class="profil-panel-aciklama">Şifreni güncel tut. Oturum güvenliği ve doğrulama işlemleri sunucu tarafında korunur.</p><div class="profil-sifre-satir"><div><strong>Şifre değiştir</strong><span>Yeni şifre en az 6 karakter olmalı.</span></div><div class="profil-sifre-form"><input id="yeniSifre" type="password" class="girdi" placeholder="Yeni şifre" autocomplete="new-password" /><button class="btn btn-birincil btn-kucuk" onclick="parolaGuncelle()">Güncelle</button></div></div></section></div>`;
+}
+
+function avatarDosyasiAc() {
+  const input = document.getElementById("avatarDosyasi");
+  if (input) input.click();
+}
+async function avatarYukle(dosya) {
+  if (!dosya) return;
+  try {
+    toast("Avatar hazırlanıyor…");
+    const veri = await API.avatarOku(dosya);
+    const r = await Auth.avatarGuncelle(veri);
+    if (!r.ok) return toast(r.hata || "Avatar güncellenemedi.");
+    ustBarGuncelle();
+    await profilCiz();
+    toast("Avatarın güncellendi.");
+  } catch (e) { toast(e.message || "Avatar yüklenemedi."); }
+  const input = document.getElementById("avatarDosyasi");
+  if (input) input.value = "";
+}
+async function avatarSil() {
+  if (!Auth.mevcut()) return;
+  const r = await Auth.avatarSil();
+  if (!r.ok) return toast(r.hata || "Avatar sıfırlanamadı.");
+  ustBarGuncelle();
+  await profilCiz();
+  toast("Avatar sıfırlandı.");
 }
 
 async function parolaGuncelle() {
@@ -751,7 +779,7 @@ async function adminCiz() {
         const anaYonetici = (u.id === "u-admin" || u.id === 1);
         const mini = kac(String(u.ad || "K").trim().split(/\s+/).slice(0,2).map(x=>x[0]||"").join("").toUpperCase() || "K");
         return `<tr>
-        <td><div class="yonetim-kullanici"><span class="yonetim-mini-avatar">${mini}</span><span><b>${kac(u.ad)}</b><small>${u.rol ? rolAdi(u.rol) : "Öğrenci"}</small></span></div></td><td>${kac(u.eposta || u.telefon || "—")}</td><td>${tarihKisa(u.olusturma || u.tarih)}</td>
+        <td><div class="yonetim-kullanici">${avatarHTML(u.ad, u.avatar, "yonetim-mini-avatar")}<span><b>${kac(u.ad)}</b><small>${u.rol ? rolAdi(u.rol) : "Öğrenci"}</small></span></div></td><td>${kac(u.eposta || u.telefon || "—")}</td><td>${tarihKisa(u.olusturma || u.tarih)}</td>
         <td><select class="girdi" style="max-width:150px" onchange="rolGuncelle('${u.id}',this.value)" ${anaYonetici ? "disabled" : ""}>
           ${["ogrenci", "ogretmen", "veli", "admin"].map(r => `<option value="${r}" ${u.rol === r ? "selected" : ""}>${rolAdi(r)}</option>`).join("")}
         </select></td>
@@ -1013,6 +1041,13 @@ function yukariCik() { window.scrollTo({ top: 0, behavior: "smooth" }); }
 // --- yardımcılar ---
 function tarihKisa(t) { try { return new Date(t).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" }); } catch { return ""; } }
 function kac(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+function avatarBasHarfi(ad) {
+  return kac(String(ad || "K").trim().split(/\s+/).slice(0,2).map(x => x[0] || "").join("").toUpperCase() || "K");
+}
+function avatarHTML(ad, avatar, cls="") {
+  const src = typeof avatar === "string" && /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/i.test(avatar) ? kac(avatar) : "";
+  return src ? `<span class="avatar-gorsel ${cls}"><img src="${src}" alt="" loading="lazy" /></span>` : `<span class="avatar-gorsel avatar-initial ${cls}">${avatarBasHarfi(ad)}</span>`;
+}
 
 // --- Şikayetler ---
 const SIKAYET_NEDENLERI = ["Hakaret / Küfür", "Spam / Reklam", "Yanlış bilgi", "Kişisel bilgi paylaşımı", "Diğer"];
