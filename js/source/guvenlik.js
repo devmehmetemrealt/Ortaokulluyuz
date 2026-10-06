@@ -132,8 +132,8 @@ window.__OOK_ADMIN__ = window.__OOK_ADMIN__ === true;
     /* Dock edilmiş DevTools için güçlü geometri sinyali. */
     if (dw > 220 || dh > 170) mark('dock');
   };
-  async function raporla(){
-    if (adminMuaf() || state.sent || state.signals.size < 2) return;
+  async function raporla(force=false){
+    if (adminMuaf() || state.sent || (!force && state.signals.size < 2)) return;
     state.sent = true;
     try {
       const r = await API.sor('devtools-rapor',{kanit:{sinyaller:[...state.signals],masaustu:true,ts:Date.now()}});
@@ -156,7 +156,22 @@ window.__OOK_ADMIN__ = window.__OOK_ADMIN__ === true;
     } catch(e) {}
   }
 
-  /* Klavye/sağ tık engellenmiyor. DevTools'u menüden açan kullanıcı da tespit edilebilir.
+  /* F12 ve yaygın DevTools kısayolları: kısayolun kendisi tek başına güçlü kanıt olduğu için
+     doğrudan raporlanır. Bu sırada varsayılan tarayıcı davranışı da engellenir. */
+  window.addEventListener('keydown', (e) => {
+    if (adminMuaf() || state.sent) return;
+    const k = String(e.key || '').toUpperCase();
+    const f12 = k === 'F12';
+    const combo = e.ctrlKey && e.shiftKey && ['I','J','C','K'].includes(k);
+    if (f12 || combo) {
+      e.preventDefault();
+      e.stopPropagation();
+      state.signals.add('shortcut');
+      raporla(true);
+    }
+  }, true);
+
+  /* DevTools'u menüden açma / dock edilme durumu için ek sinyaller.
      debugger ölçümü, tarayıcı DevTools açıkken yürütmenin duraksamasını yakalamaya çalışır. */
   setInterval(() => {
     if (adminMuaf()) return;

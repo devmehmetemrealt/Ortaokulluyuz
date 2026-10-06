@@ -186,7 +186,12 @@ const Auth = {
   async giris(eposta, sifre) {
     if (this._uzak) {
       const j = await API.sor("giris", { eposta, sifre });
-      if (!j.ok) return { hata: j.hata || "Giriş başarısız." };
+      if (!j.ok) return {
+        hata: j.hata || "Giriş başarısız.",
+        dogrulama_gerekli: j.hata_kodu === "VERIFY_REQUIRED" || String(j.hata || "").startsWith("E-POSTA-DOGRULAMA-GEREK"),
+        hedef: j.hedef || eposta,
+        kanal: j.kanal || "eposta"
+      };
       this._oturum = j.kullanici;
       return { ok: true, kullanici: j.kullanici };
     }

@@ -450,18 +450,27 @@ const SohbetCanli = {
 
 // --- Auth modal / profil ---
 function authModal(mod = "giris") {
-  document.getElementById("authModal").classList.remove("hidden");
-  authSekme(mod);
-  if (Auth.sunucuModu() && window.Guvenlik) Guvenlik.hazirla(mod === 'giris' ? 'girisCaptcha' : 'kayitCaptcha');
+  if (document.body.dataset.sayfa === "giris") {
+    authSekme(mod);
+    return;
+  }
+  // Giriş/kayıt artık ayrı sayfalarda tutuluyor. Eski modal çağrılarını da kırmadan yönlendir.
+  if (mod === "giris") { location.href = "giris.html"; return; }
+  location.href = "kayit.html";
 }
 function authSekme(mod) {
   if (mod === "kayit") { location.href = "kayit.html"; return; }
   const giris = mod === "giris";
-  document.getElementById("girisForm").classList.toggle("hidden", !giris);
-  document.getElementById("kayitForm").classList.toggle("hidden", giris);
-  document.getElementById("dogrulamaForm").classList.add("hidden");
-  document.getElementById("sekmeGiris").className = "auth-sekme" + (giris ? " aktif" : "");
-  document.getElementById("sekmeKayit").className = "auth-sekme" + (!giris ? " aktif" : "");
+  const gf = document.getElementById("girisForm");
+  const kf = document.getElementById("kayitForm");
+  const df = document.getElementById("dogrulamaForm");
+  if (gf) gf.classList.toggle("hidden", !giris);
+  if (kf) kf.classList.toggle("hidden", giris);
+  if (df) df.classList.add("hidden");
+  const sg = document.getElementById("sekmeGiris");
+  const sk = document.getElementById("sekmeKayit");
+  if (sg) sg.className = "auth-sekme" + (giris ? " aktif" : "");
+  if (sk) sk.className = "auth-sekme" + (!giris ? " aktif" : "");
   if (Auth.sunucuModu() && window.Guvenlik) Guvenlik.hazirla(giris ? 'girisCaptcha' : 'kayitCaptcha');
 }
 function sifreGoster(id, btn) {
@@ -477,8 +486,12 @@ async function girisYap(e) {
   const ep = document.getElementById("gEposta").value.trim();
   const r = await Auth.giris(ep, document.getElementById("gSifre").value);
   if (r.hata) {
-    if (String(r.hata).startsWith("E-POSTA-DOGRULAMA-GEREK")) { dogrulamaEkraniGoster(ep, "eposta", ""); return; }
-    return toast(r.hata);
+    if (r.dogrulama_gerekli) { dogrulamaEkraniGoster(r.hedef || ep, r.kanal || "eposta", ""); return; }
+    return typeof toast === "function" ? toast(r.hata) : (document.getElementById("girisDurum") && (document.getElementById("girisDurum").textContent = r.hata));
+  }
+  if (document.body.dataset.sayfa === "giris") {
+    location.href = "index.html";
+    return;
   }
   document.getElementById("authModal").classList.add("hidden");
   await Tercih.baslat();
@@ -567,7 +580,8 @@ async function googleCevap(cevap) {
     dogrulamaEkraniGoster(r.eposta, "eposta", r.posta_hatasi || "");
     return;
   }
-  document.getElementById("authModal").classList.add("hidden");
+  if (document.body.dataset.sayfa === "giris") { location.href = "index.html"; return; }
+  const am = document.getElementById("authModal"); if (am) am.classList.add("hidden");
   ustBarGuncelle(); profilCiz(); adminCiz(); forumCiz(); mesajlariCiz();
   toast("Hoş geldiniz, " + r.kullanici.ad + ".");
 }
@@ -581,16 +595,24 @@ let _dogrulamaHedef = "", _dogrulamaKanal = "eposta", _kodSayac = null;
 function dogrulamaEkraniGoster(hedef, kanal, postaHatali) {
   _dogrulamaHedef = hedef;
   _dogrulamaKanal = kanal === "telefon" ? "telefon" : "eposta";
-  document.getElementById("girisForm").classList.add("hidden");
-  document.getElementById("kayitForm").classList.add("hidden");
+  const gf = document.getElementById("girisForm");
+  const kf = document.getElementById("kayitForm");
   const d = document.getElementById("dogrulamaForm");
+  if (gf) gf.classList.add("hidden");
+  if (kf) kf.classList.add("hidden");
+  if (!d) return;
   d.classList.remove("hidden");
-  document.getElementById("dogrulamaEposta").textContent = hedef;
-  document.getElementById("dogrulamaKanalYazi").textContent = _dogrulamaKanal === "telefon" ? "telefonunuza" : "e-postanıza";
-  document.getElementById("dogrulamaUyari").textContent = postaHatali
+  const he = document.getElementById("dogrulamaEposta");
+  const ky = document.getElementById("dogrulamaKanalYazi");
+  const uy = document.getElementById("dogrulamaUyari");
+  const ko = document.getElementById("dogrulamaKod");
+  if (he) he.textContent = hedef;
+  if (ky) ky.textContent = _dogrulamaKanal === "telefon" ? "telefonunuza" : "e-postanıza";
+  if (uy) uy.textContent = postaHatali
     ? "Uyarı: e-posta gönderilemedi (" + postaHatali + "). Kod ulaşmazsa yöneticiden manuel onay isteyin."
     : (_dogrulamaKanal === "telefon" ? "6 haneli kod telefonunuza gönderildi. 15 dakika geçerlidir." : "6 haneli kod e-postanıza gönderildi. 15 dakika geçerlidir.");
-  document.getElementById("dogrulamaKod").value = "";
+  if (ko) { ko.value = ""; ko.focus(); }
+  if (document.getElementById("authModal")) document.getElementById("authModal").classList.remove("hidden");
   kodSayacBaslat();
 }
 function kodSayacBaslat() {
@@ -610,9 +632,14 @@ async function dogrulaYap(e) {
   const kod = document.getElementById("dogrulamaKod").value.trim();
   if (kod.length < 4) return toast("Kodu eksiksiz yazın.");
   const r = await Auth.dogrula(_dogrulamaHedef, kod);
-  if (r.hata) return toast(r.hata);
-  document.getElementById("authModal").classList.add("hidden");
-  document.getElementById("dogrulamaForm").classList.add("hidden");
+  if (r.hata) {
+    const d = document.getElementById("dogrulamaUyari") || document.getElementById("girisDurum");
+    if (d) d.textContent = r.hata;
+    return;
+  }
+  if (document.body.dataset.sayfa === "giris") { location.href = "index.html"; return; }
+  const am = document.getElementById("authModal"); if (am) am.classList.add("hidden");
+  const df = document.getElementById("dogrulamaForm"); if (df) df.classList.add("hidden");
   await Tercih.baslat();
   ustBarGuncelle(); profilCiz(); adminCiz(); forumCiz(); mesajlariCiz(); onerilenlerCiz();
   toast("E-postanız doğrulandı, hoş geldiniz!");
@@ -634,6 +661,25 @@ function kayitSayfasiKanalSec(kanal) {
 function kayitSayfasiKanali() {
   return document.querySelector("#kayitSayfaKanal .kanal-sekme.aktif")?.dataset.kanal || "eposta";
 }
+async function girisSayfasiBaslat() {
+  try {
+    const uzak = await Auth.baslat();
+    const durum = document.getElementById("girisDurum");
+    if (!uzak) {
+      if (durum) durum.textContent = "Sunucu bağlantısı kurulamadı. Lütfen biraz sonra tekrar deneyin.";
+      return;
+    }
+    if (window.Guvenlik) await Guvenlik.hazirla("girisCaptcha");
+    const form = document.getElementById("girisForm");
+    if (form) form.addEventListener("submit", girisYap);
+    const y = await Auth.yapilandirma();
+    if (y.google && y.googleClientId) googleHazirla(y.googleClientId);
+  } catch (e) {
+    const durum = document.getElementById("girisDurum");
+    if (durum) durum.textContent = "Giriş ekranı başlatılamadı.";
+  }
+}
+
 async function kayitSayfasiBaslat() {
   try {
     const uzak = await Auth.baslat();
@@ -725,7 +771,7 @@ async function kayitSayfasiKodTekrar() {
 async function cikisYap() {
   await Auth.cikis();
   Mesaj._acikSohbet = null; mesajRozetGuncelle(0);
-  ustBarGuncelle(); profilCiz(); adminCiz(); forumCiz(); kitapListesiniCiz(); mesajlariCiz(); onerilenlerCiz(); toast("Çıkış yapıldı.");
+  location.href = "index.html";
 }
 function ustBarGuncelle() {
   const alan = document.getElementById("girisAlani");
@@ -1297,6 +1343,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.documentElement.classList.add("js-anim");
   const sayfa = document.body.dataset.sayfa || "index";
   if (sayfa === "kayit") { await kayitSayfasiBaslat(); return; }
+  if (sayfa === "giris") { await girisSayfasiBaslat(); return; }
   if (!document.getElementById("iskelet-ust")) return;
   try {
     Layout.kur();

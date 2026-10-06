@@ -27,7 +27,7 @@ const Layout = {
 <header class="ana-nav">
   <div class="sutun-dar px-4 nav-ic">
     <a class="marka" href="index.html" style="text-decoration:none">
-      <img class="amblem-img" src="img/logo.svg?v=7" alt="Ortaokulluyuz logosu" />
+      <img class="amblem-img" src="img/logo.svg?v=13" alt="Ortaokulluyuz logosu" />
       <span>
         <span class="marka-ad">Ortaokulluyuz</span>
         <span class="marka-alt">Dijital Ders Kitabı ve Eğitim Platformu • 5-8. Sınıflar</span>
@@ -160,7 +160,7 @@ const Layout = {
 <div id="authModal" class="hidden fixed inset-0 z-[95] bg-black/50 flex items-center justify-center p-4">
   <div class="auth-kart">
     <div class="auth-ust">
-      <img class="amblem-img" src="img/logo.svg?v=7" alt="Ortaokulluyuz logosu" />
+      <img class="amblem-img" src="img/logo.svg?v=13" alt="Ortaokulluyuz logosu" />
       <div><div class="auth-baslik">Ortaokulluyuz'a hoş geldiniz</div>
       <div class="auth-alt">Öğrenci, öğretmen ve veliler için ortak eğitim platformu</div></div>
     </div>

@@ -737,7 +737,9 @@ module.exports = async (req, res) => {
         const u = (await client.query('SELECT id, ad, eposta, telefon, parola, rol, eposta_onay, avatar, olusturma FROM uyeler WHERE eposta = $1 OR telefon = $1', [anahtar])).rows[0];
         if (!u) return hata(res, 'Bu bilgilerle kayıt bulunamadı. Önce kayıt olun.', 404);
         if (!(await bcrypt.compare(sifre, u.parola))) return hata(res, 'Şifre hatalı. Tekrar deneyin.', 401);
-        if (!u.eposta_onay) return hata(res, 'E-POSTA-DOGRULAMA-GEREK:Hesabınıza gönderilen 6 haneli kodu girerek doğrulayın.', 403);
+        if (!u.eposta_onay) {
+          return gonder(res, 403, { ok: false, hata: 'E-POSTA-DOGRULAMA-GEREK:Hesabınıza gönderilen 6 haneli kodu girerek doğrulayın.', hata_kodu: 'VERIFY_REQUIRED', hedef: anahtar, kanal: telGiris ? 'telefon' : 'eposta' });
+        }
         delete u.parola; delete u.eposta_onay;
         jetonVer(res, req, u);
         return gonder(res, 200, { ok: true, kullanici: u });

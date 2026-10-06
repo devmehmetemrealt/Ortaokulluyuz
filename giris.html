@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Giriş Yap — Ortaokulluyuz</title>
+<meta name="description" content="Ortaokulluyuz hesabınıza güvenli giriş yapın." />
+<link rel="icon" type="image/svg+xml" href="img/logo.svg?v=13" />
+<link rel="stylesheet" href="css/styles.css?v=13" />
+<link rel="stylesheet" href="css/theme-v7.css?v=10" />
+<link rel="stylesheet" href="css/theme-v8.css?v=5" />
+<link rel="stylesheet" href="css/auth-pages.css?v=1" />
+</head>
+<body data-sayfa="giris" class="auth-sayfa">
+<header class="auth-nav">
+  <a class="auth-logo" href="index.html">
+    <img src="img/logo.svg?v=13" alt="Ortaokulluyuz" />
+    <span><strong>Ortaokulluyuz</strong><small>Dijital eğitim platformu • 5–8. sınıflar</small></span>
+  </a>
+  <a href="index.html" class="auth-home">Anasayfaya dön</a>
+</header>
+<main class="auth-page-main">
+  <section class="auth-splash">
+    <div class="auth-orb auth-orb-1"></div><div class="auth-orb auth-orb-2"></div><div class="auth-grid-lines"></div>
+    <div class="auth-splash-content">
+      <span class="auth-kicker">TEKRAR HOŞ GELDİN</span>
+      <h1>Derslerin, kitapların ve arkadaşların burada seni bekliyor.</h1>
+      <p>Hesabına giriş yap; kişisel önerilerini, favorilerini, forumunu ve mesajlarını kaldığın yerden kullan.</p>
+      <div class="auth-splash-cards">
+        <div><span class="auth-card-dot dot-blue"></span><b>Kitap kütüphanesi</b><small>5–8. sınıf içerikleri</small></div>
+        <div><span class="auth-card-dot dot-purple"></span><b>Kişisel öneriler</b><small>Gezdiğin sınıf ve derslere göre</small></div>
+        <div><span class="auth-card-dot dot-cyan"></span><b>Ödev ve mesajlaşma</b><small>Forum, özel mesaj ve sesli arama</small></div>
+      </div>
+    </div>
+  </section>
+  <section class="auth-panel-wrap">
+    <div class="auth-panel">
+      <div class="auth-panel-head"><span class="profil-kicker">HESABINA GİR</span><h2>Giriş yap</h2><p>E-posta adresin veya telefon numaran ve şifrenle devam et.</p></div>
+      <div id="girisDurum" class="standalone-auth-status" aria-live="polite"></div>
+      <form id="girisForm" class="standalone-auth-form">
+        <label class="auth-etiket">E-posta veya telefon</label>
+        <input id="gEposta" type="text" required class="girdi auth-girdi" placeholder="ornek@eposta.com veya 05XX XXX XX XX" autocomplete="username" />
+        <div class="auth-field-row"><label class="auth-etiket">Şifre</label><span class="auth-mini-note">Hesap güvenliği aktif</span></div>
+        <div class="sifre-sar"><input id="gSifre" type="password" required class="girdi auth-girdi" placeholder="Şifren" autocomplete="current-password" /><button type="button" class="sifre-goz" onclick="sifreGoster('gSifre',this)" title="Göster/Gizle">👁</button></div>
+        <div id="girisCaptcha"></div>
+        <button class="btn btn-birincil auth-submit">Giriş Yap</button>
+      </form>
+      <div id="googleBtnSar" class="standalone-google hidden"><div class="ayrac"><span>veya</span></div><div class="google-btn-wrap"><div id="googleBtn"></div></div><p class="auth-not">Google ile girişte de hesabın için doğrulama uygulanır.</p></div>
+      <form id="dogrulamaForm" class="standalone-auth-form hidden" onsubmit="dogrulaYap(event)">
+        <div class="verify-badge">✓</div><h3>Doğrulama kodunu gir</h3><p><b id="dogrulamaKanalYazi">e-postanıza</b> gönderilen kodu girin: <b id="dogrulamaEposta"></b></p>
+        <div id="dogrulamaUyari" class="standalone-auth-status"></div>
+        <input id="dogrulamaKod" required maxlength="6" inputmode="numeric" class="girdi dogrulama-girdi" placeholder="123456" autocomplete="one-time-code" />
+        <button class="btn btn-birincil auth-submit">Doğrula ve giriş yap</button>
+        <button id="kodTekrarBtn" type="button" class="btn btn-ikincil auth-submit-alt" onclick="kodTekrarGonder()">Kodu tekrar gönder</button>
+      </form>
+      <div class="auth-account-switch">Hesabın yok mu? <a href="kayit.html">Hemen kayıt ol</a></div>
+      <a href="index.html" class="auth-back">← Ana sayfaya dön</a>
+    </div>
+  </section>
+</main>
+<script src="js/app.bundle.js?v=13"></script>
+</body>
+</html>
