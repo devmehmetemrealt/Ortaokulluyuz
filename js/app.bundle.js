@@ -262,7 +262,6 @@ const FORUM_SEED = [
   }
 ];
 
-
 /* ===== ikon.js ===== */
 /* SVG ikon kütüphanesi — emojiler yerine resmi ve modern çizgi ikonlar */
 const IKONLAR = {
@@ -313,7 +312,6 @@ function ikonYildiz(dolu, boy) {
 function kurumRozet(zemin, harf) {
   return `<svg class="kurum-rozet" width="44" height="44" viewBox="0 0 44 44" aria-hidden="true"><rect x="1" y="1" width="42" height="42" rx="9" fill="${zemin}"/><text x="22" y="27" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="13" font-weight="800" fill="#fff">${harf}</text></svg>`;
 }
-
 
 /* ===== api.js ===== */
 /* Ortaokulluyuz — güvenli API istemcisi.
@@ -440,7 +438,6 @@ const API = {
     return this.sor("soru-ekle", veri);
   }
 };
-
 
 /* ===== guvenlik.js ===== */
 /* Ortaokulluyuz özel CAPTCHA + kısa ömürlü, HttpOnly güvenlik geçişi. */
@@ -637,8 +634,6 @@ window.__OOK_ADMIN__ = window.__OOK_ADMIN__ === true;
   window.addEventListener('resize',()=>setTimeout(geometri,150));
   window.addEventListener('beforeunload',()=>{ /* sadece sayaç/sinyal tutulur */ });
 })();
-
-
 
 /* ===== auth.js ===== */
 /* Auth — sunucu (PHP+MySQL) varsa onu kullanır, yoksa yerel moda düşer.
@@ -924,7 +919,6 @@ const Auth = {
   }
 };
 
-
 /* ===== forum.js ===== */
 /* Forum — sunucu (PHP+MySQL) varsa ortak veritabanı, yoksa yerel yedek */
 const YerelForum = {
@@ -1108,7 +1102,6 @@ const Forum = {
   }
 };
 
-
 /* ===== mesaj.js ===== */
 /* Özel mesajlar — sunucu varsa ortak veritabanı, yoksa yerel yedek.
    Not: güvenlik denetimi kapsamında mesajlar yöneticiler tarafından görüntülenebilir. */
@@ -1232,7 +1225,6 @@ const Mesaj = {
   }
 };
 
-
 /* ===== tercih.js ===== */
 /* Kişiselleştirme — sınıf/ders/kitap davranışlarını yerel + sunucu profiline dönüştürür. */
 const Tercih = {
@@ -1349,7 +1341,6 @@ const Tercih = {
     return sinif + '. sınıf • ' + dersAdi(id, sinif);
   }
 };
-
 
 /* ===== sesli.js ===== */
 /* 1'e 1 WebRTC sesli görüşme.
@@ -1710,7 +1701,6 @@ setInterval(() => {
   if (typeof Auth !== 'undefined' && Auth.sunucuModu && Auth.sunucuModu()) Sesli.gelenleriKontrolEt();
 }, 2500);
 
-
 /* ===== paylasim.js ===== */
 /* Öğretmen paylaşımları — sunucu varsa ortak DB, yoksa yerel yedek.
    Yazma yetkisi: yalnızca öğretmen ve yöneticiler. Okuma: herkese açık. */
@@ -1766,7 +1756,6 @@ const Paylasim = {
     return { ok: true };
   }
 };
-
 
 /* ===== reader.js ===== */
 /* Z-Kitap Reader: flipbook + canvas annotation + zoom/pan + thumbnails + fullscreen */
@@ -1981,7 +1970,6 @@ window.addEventListener("keydown", e => {
   if (e.key === "Escape") Reader.kapat();
 });
 
-
 /* ===== odevler.js ===== */
 /* Hazır ödev + deneme sınavı verisi — Ortaokulluyuz özgün çalışma içeriği.
    NOT: Bunlar MEB'in resmi cevap anahtarı değildir; sitemiz öğretmen
@@ -1992,7 +1980,6 @@ function odevUnite(sinif, ders) {
   const u = (MUfredat.uniteler[sinif] && MUfredat.uniteler[sinif][ders]) || [];
   return u;
 }
-
 
 /* ===== odev-5.js ===== */
 /* 5. Sınıf hazır ödevler + deneme sınavları (özgün içerik) */
@@ -2207,7 +2194,6 @@ din: [
 { s: "Komşulukta saygıya örnek hangisidir?", o: ["Gürültü yapmak", "Kapıyı çarpmak", "Hastayken ziyaret etmek", "Dedikodu yapmak"], c: 2 } ]
 };
 
-
 /* ===== odev-6.js ===== */
 /* 6. Sınıf hazır ödevler + deneme sınavları (özgün içerik) */
 ODEV_VERISI[6] = {
@@ -2420,7 +2406,6 @@ din: [
 { s: "Veda Hutbesi mesajı hangisidir?", o: ["Irk üstünlüğü yoktur", "Savaş çağrısı", "Vergi emri", "Göç emri"], c: 0 },
 { s: "Kötü alışkanlıktan korunma yolu hangisidir?", o: ["Yalnız kalmak", "İyi arkadaş çevresi", "Gece gezmek", "Sır saklamak"], c: 1 } ]
 };
-
 
 /* ===== odev-7.js ===== */
 /* 7. Sınıf hazır ödevler + deneme sınavları (özgün içerik) */
@@ -2635,7 +2620,6 @@ din: [
 { s: "Ahiret aşaması değildir?", o: ["Haşir", "Hesap", "Doğum", "Kıyamet"], c: 2 } ]
 };
 
-
 /* ===== odev-8.js ===== */
 /* 8. Sınıf hazır ödevler + deneme sınavları (özgün içerik) */
 ODEV_VERISI[8] = {
@@ -2849,7 +2833,6 @@ din: [
 { s: "Medine Vesikası neyi gösterir?", o: ["Savaşı", "Farklı inançlara güvenceyi", "Vergiyi", "Göçü"], c: 1 } ]
 };
 
-
 /* ===== layout.js ===== */
 /* Ortak sayfa iskeleti: üst şerit, başlık, menü, altlık, modallar, okuyucu.
    Tüm sayfalar <div id="iskelet-ust"></div> ... <div id="iskelet-alt"></div> içerir. */
@@ -2889,6 +2872,7 @@ const Layout = {
     <nav class="ust-menu">
       <a data-nav="index" href="index.html">Anasayfa</a>
       <a data-nav="kitaplar" href="kitaplar.html">Tüm Kitaplar</a>
+      <a data-nav="matematik" href="matematik/">Matematik</a>
       <a data-nav="sinif-5" href="sinif-5.html">5. Sınıf</a>
       <a data-nav="sinif-6" href="sinif-6.html">6. Sınıf</a>
       <a data-nav="sinif-7" href="sinif-7.html">7. Sınıf</a>
@@ -2906,6 +2890,7 @@ const Layout = {
       <option value="">Menüye git…</option>
       <option value="index.html">Anasayfa</option>
       <option value="kitaplar.html">Tüm Kitaplar</option>
+      <option value="matematik/">Ortaokulluyuz Matematik</option>
       <option value="sinif-5.html">5. Sınıf Kitapları</option>
       <option value="sinif-6.html">6. Sınıf Kitapları</option>
       <option value="sinif-7.html">7. Sınıf Kitapları</option>
@@ -2930,7 +2915,7 @@ const Layout = {
     </div>
     <div>
       <div class="alt-baslik">Sayfalar</div>
-      <div class="alt-metin"><a href="kitaplar.html">Tüm Kitaplar</a> • <a href="odevler.html">Hazır Ödevler</a> • <a href="forum.html">Ödev Forumu</a> • <a href="mesajlar.html">Mesajlar</a> • <a href="profil.html">Profilim</a> • <a href="yardim.html">Yardım</a></div>
+      <div class="alt-metin"><a href="kitaplar.html">Tüm Kitaplar</a> • <a href="matematik/">Ortaokulluyuz Matematik</a> • <a href="odevler.html">Hazır Ödevler</a> • <a href="forum.html">Ödev Forumu</a> • <a href="mesajlar.html">Mesajlar</a> • <a href="profil.html">Profilim</a> • <a href="yardim.html">Yardım</a></div>
       <div class="alt-metin"><a href="sinif-5.html">5. Sınıf</a> • <a href="sinif-6.html">6. Sınıf</a> • <a href="sinif-7.html">7. Sınıf</a> • <a href="sinif-8.html">8. Sınıf</a> • <a href="secmeli.html">Seçmeli Dersler</a></div>
     </div>
     <div>
@@ -3101,7 +3086,6 @@ const Layout = {
   }
 };
 
-
 /* ===== reklam.js ===== */
 /* Reklam altyapısı — varsayılan KAPALI. Açmak için aşağıdaki 3 satırı doldurun:
    1. AdSense hesabınız onaylanınca Publisher ID'yi yazın (ca-pub-...).
@@ -3139,7 +3123,6 @@ function reklamKur() {
     });
   } catch (e) {}
 }
-
 
 /* ===== ui-effects.js ===== */
 /* Ortaokulluyuz V7 — yalnızca görsel mikro-etkileşimler. İş mantığına dokunmaz. */
@@ -3201,7 +3184,6 @@ function reklamKur() {
     buttonPress();
   });
 })();
-
 
 /* ===== app.js ===== */
 /* Ortaokulluyuz — ana uygulama */
@@ -4623,5 +4605,3 @@ async function soruGonder(e) {
   try { await Forum.soruEkle({ ...veri, gorsel }); temizle(); }
   catch (e2) { toast(e2.message); }
 }
-
-

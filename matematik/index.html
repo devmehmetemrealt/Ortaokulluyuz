@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ortaokulluyuz Matematik — 5-8. Sınıf</title>
+<meta name="description" content="5-8. sınıflar için matematik araçları, AI soru çözücü, kitap okuyucu, hesap makinesi, pi hesaplayıcı ve geometri atölyesi.">
+<link rel="icon" type="image/svg+xml" href="img/matematik-logo.svg">
+<link rel="stylesheet" href="css/math.css?v=1">
+</head>
+<body>
+<div class="math-bg"><span></span><span></span><span></span></div>
+<header class="math-nav">
+  <div class="math-nav-inner">
+    <a class="math-brand" href="index.html" aria-label="Ortaokulluyuz Matematik ana sayfa">
+      <img src="img/matematik-logo.svg" alt="Ortaokulluyuz Matematik">
+      <div><b>Ortaokulluyuz</b><strong>MATEMATİK</strong></div>
+    </a>
+    <nav>
+      <a class="active" href="#anasayfa">Ana Sayfa</a>
+      <a href="#reader">AI Reader</a>
+      <a href="#hesap">Hesap Makinesi</a>
+      <a href="#pi">π Laboratuvarı</a>
+      <a href="#geometri">Geometri</a>
+      <a href="#soru">Soru Atölyesi</a>
+      <a href="mesajlar.html">Mesajlar</a><a class="platform-link" href="../index.html">Ortaokulluyuz ↗</a>
+    </nav>
+    <div id="math-account" class="math-account"></div>
+  </div>
+</header>
+<main id="anasayfa" class="math-shell">
+  <section class="math-hero">
+    <div class="hero-copy">
+      <div class="eyebrow">5 · 6 · 7 · 8. SINIF MATEMATİK</div>
+      <h1>Matematiği çözmekten öteye taşı.<em> Anla.</em></h1>
+      <p>Kitap sayfasını yükle, bir soruyu seç veya bütün sayfayı okut. AI yardımcı, adımları saklamadan açıklasın; sonra sonucu araçlarla kontrol et.</p>
+      <div class="hero-actions">
+        <button class="btn btn-primary" onclick="MathApp.scrollTo('reader')">AI Reader'ı Aç <span>↗</span></button>
+        <button class="btn btn-glass" onclick="MathApp.scrollTo('geometri')">Geometri Atölyesi</button>
+      </div>
+      <div class="hero-chips">
+        <button onclick="MathApp.sinifSet(5)">5. Sınıf</button>
+        <button onclick="MathApp.sinifSet(6)">6. Sınıf</button>
+        <button onclick="MathApp.sinifSet(7)">7. Sınıf</button>
+        <button onclick="MathApp.sinifSet(8)">8. Sınıf</button>
+      </div>
+    </div>
+    <div class="hero-orbit">
+      <div class="orbit-card main"><div class="symbol">∑</div><b>Çözüm Motoru</b><span>Adım adım düşün</span></div>
+      <div class="orbit-card a">x² + y² = r²</div>
+      <div class="orbit-card b">π ≈ 3.1415926535…</div>
+      <div class="orbit-card c">√144 = 12</div>
+      <div class="orbit-grid"></div>
+    </div>
+  </section>
+
+  <section class="math-stats glass-panel">
+    <div><span>Bu platformda</span><strong>5–8</strong><small>Sınıf seviyesi</small></div>
+    <div><span>Hazır konu</span><strong>24</strong><small>Matematik başlığı</small></div>
+    <div><span>Canlı hesap</span><strong id="math-stat-solve">0</strong><small>Senin çözümlerin</small></div>
+    <div><span>AI oturumu</span><strong id="math-stat-ai">0</strong><small>Yaptığın analiz</small></div>
+  </section>
+  <section class="sync-banner glass-panel">
+    <div class="sync-mark">↗</div><div><b>Ortaokulluyuz hesabınla bağlı</b><p>Aynı giriş, aynı profil, aynı mesajlar. Matematik aktivitelerin hesabındaki istatistik zincirine işlenir.</p></div><a href="../profil.html">Profilimi aç</a>
+  </section>
+
+  <section class="tool-deck">
+    <button onclick="MathApp.scrollTo('reader')"><b>AI Reader</b><span>Sayfa / soru çöz</span></button>
+    <button onclick="MathApp.scrollTo('hesap')"><b>Akıllı Hesap</b><span>5–8. sınıf seviyeli</span></button>
+    <button onclick="MathApp.scrollTo('pi')"><b>π Laboratuvarı</b><span>Basamak basamak hesapla</span></button>
+    <button onclick="MathApp.scrollTo('geometri')"><b>Geometri</b><span>Çiz + ölç + keşfet</span></button>
+  </section>
+
+  <section class="section-head" id="reader"><div><span class="eyebrow">AI READER</span><h2>Kitaptaki soruyu gör, çözümü al.</h2><p>Tek soru, tüm sayfa veya kendi yüklediğin bir ekran görüntüsü. Görsel sunucuya AI anahtarıyla güvenli şekilde iletilir.</p></div></section>
+  <section class="reader-grid">
+    <div class="reader-stage glass-panel" id="reader-stage">
+      <div class="reader-empty" id="reader-empty"><div class="upload-icon">⌁</div><h3>Bir sayfa veya soru görseli bırak</h3><p>PNG, JPG veya WebP · en fazla 2 MB</p><label class="drop-upload"><input id="ai-image" type="file" accept="image/png,image/jpeg,image/webp">Görsel Seç</label></div>
+      <img id="ai-preview" class="ai-preview hidden" alt="AI analiz görseli">
+      <div id="ai-selector" class="ai-selector hidden"><div class="selector-box"><span>Bu görselde neyi çözeyim?</span><button class="selector-btn active" data-mode="one" onclick="MathApp.aiMode(this,'one')">Bir soru</button><button class="selector-btn" data-mode="page" onclick="MathApp.aiMode(this,'page')">Tüm sayfa</button></div></div>
+    </div>
+    <aside class="reader-side glass-panel">
+      <div class="side-title"><span>Çözüm ayarları</span><span class="pulse-dot"></span></div>
+      <label>Seviye<select id="ai-grade"><option value="5">5. sınıf</option><option value="6">6. sınıf</option><option value="7">7. sınıf</option><option value="8">8. sınıf</option></select></label>
+      <label>Konu<select id="ai-topic"></select></label>
+      <label>İstek<textarea id="ai-prompt" rows="5" placeholder="Örn. İşlemleri tek tek açıkla ve sonunda cevabı kontrol et."></textarea></label>
+      <button class="btn btn-primary wide" onclick="MathApp.analyzeImage()">AI ile çöz <span>→</span></button>
+      <button class="btn btn-subtle wide" onclick="MathApp.clearReader()">Temizle</button>
+      <div id="ai-status" class="mini-note">AI anahtarı Vercel'de tanımlıysa aktif olur.</div>
+    </aside>
+  </section>
+  <section class="ai-result glass-panel"><div class="result-head"><span>AI Çözümü</span><button onclick="MathApp.copyResult()">Kopyala</button></div><div id="ai-result">Bir görsel yükleyip çözüm isteyin.</div></section>
+
+  <section class="section-head" id="hesap"><div><span class="eyebrow">SMART CALC</span><h2>5–8. sınıf akıllı hesap makinesi.</h2><p>İşlemi gerçekten hesaplar; seçtiğin sınıfa göre açıklama dilini ve örnek çözüm biçimini değiştirir.</p></div></section>
+  <section class="calculator-grid">
+    <div class="calc-shell glass-panel">
+      <div class="calc-toolbar"><select id="calc-grade"><option>5</option><option>6</option><option>7</option><option>8</option></select><select id="calc-diff"><option value="kolay">Kolay</option><option value="orta" selected>Orta</option><option value="zor">Zor</option></select><button onclick="MathApp.calcClear()">AC</button></div>
+      <input id="calc-input" class="calc-display" inputmode="decimal" placeholder="(24 + 18) / 6">
+      <div class="calc-grid">
+        <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button><button data-k="/">÷</button>
+        <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button><button data-k="*">×</button>
+        <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button><button data-k="-">−</button>
+        <button data-k="0">0</button><button data-k=".">.</button><button data-k="(">(</button><button data-k=')'>)</button>
+        <button data-k="^">xʸ</button><button data-k="sqrt">√</button><button data-k="%">%</button><button class="eq" onclick="MathApp.calculate()">=</button>
+      </div>
+    </div>
+    <div class="calc-explain glass-panel"><div class="side-title"><span>Çözüm akışı</span><span id="calc-topic-badge" class="badge">5. sınıf</span></div><div id="calc-result" class="calc-result">Bir işlem gir. Örneğin <b>(24 + 18) / 6</b></div><div id="calc-steps" class="steps"></div></div>
+  </section>
+
+  <section class="section-head" id="pi"><div><span class="eyebrow">π LAB</span><h2>Pi'yi gerçekten hesapla.</h2><p>Tarayıcıda BigInt ile Machin serisini iteratif olarak çalıştırır; her adımı ve ilerlemeyi görürsün.</p></div></section>
+  <section class="pi-grid">
+    <div class="pi-panel glass-panel"><div class="pi-big">π</div><div class="pi-controls"><label>Basamak <input id="pi-digits" type="number" min="5" max="500" value="80"></label><button class="btn btn-primary" onclick="MathApp.piStart()">Hesapla</button></div><div class="progress"><span id="pi-progress"></span></div><div id="pi-stage" class="mini-note">Hazır.</div></div>
+    <div class="pi-output glass-panel"><div class="result-head"><span>Hesaplanan sonuç</span><button onclick="MathApp.copyPi()">Kopyala</button></div><pre id="pi-output">3.</pre><div id="pi-steps" class="pi-steps"></div></div>
+  </section>
+
+  <section class="section-head" id="geometri"><div><span class="eyebrow">GEOMETRİ ATÖLYESİ</span><h2>Çiz, ölç, koordinatları incele.</h2><p>Doğru, çember, dikdörtgen ve nokta araçları; cetvel, açıölçer ve koordinat düzlemi.</p></div></section>
+  <section class="geo-wrap glass-panel">
+    <div class="geo-toolbar"><button class="tool active" data-tool="select">Seç</button><button class="tool" data-tool="line">Doğru</button><button class="tool" data-tool="rect">Dikdörtgen</button><button class="tool" data-tool="circle">Çember</button><button class="tool" data-tool="point">Nokta</button><button class="tool" data-tool="ruler">Cetvel</button><button class="tool" data-tool="angle">Açı</button><button onclick="MathApp.geoClear()">Temizle</button></div>
+    <div class="geo-canvas-wrap"><svg id="geo-svg" viewBox="0 0 1000 580" aria-label="Matematiksel çizim alanı"><defs><pattern id="smallGrid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="rgba(22,88,150,.08)" stroke-width="1"/></pattern><pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse"><rect width="100" height="100" fill="url(#smallGrid)"/><path d="M100 0H0V100" fill="none" stroke="rgba(22,88,150,.15)" stroke-width="1.5"/></pattern></defs><rect width="1000" height="580" fill="url(#grid)"/><line x1="500" y1="0" x2="500" y2="580" stroke="#0f568f" stroke-width="2" opacity=".4"/><line x1="0" y1="290" x2="1000" y2="290" stroke="#0f568f" stroke-width="2" opacity=".4"/><g id="geo-shapes"></g></svg></div>
+    <div class="geo-info"><div><b>İmleç</b><span id="geo-coord">x: 0 · y: 0</span></div><div><b>Ölçüm</b><span id="geo-measure">Bir araç seç.</span></div></div>
+  </section>
+
+  <section class="section-head" id="soru"><div><span class="eyebrow">SORU ATÖLYESİ</span><h2>Soruyu topluluğa taşı.</h2><p>Ortaokulluyuz'un mevcut forum sistemine doğrudan bağlanır; aynı hesap ve aynı istatistik zinciri kullanılır.</p></div></section>
+  <section class="question-grid">
+    <div class="question-compose glass-panel"><div class="side-title"><span>Yeni matematik sorusu</span><span class="badge">Ortak Forum</span></div><select id="q-grade"><option value="5">5. sınıf</option><option value="6">6. sınıf</option><option value="7">7. sınıf</option><option value="8">8. sınıf</option></select><select id="q-topic"></select><input id="q-title" placeholder="Örn. Kareköklü ifadelerde takıldım"><textarea id="q-body" rows="7" placeholder="Soruyu, denediğin işlemleri ve takıldığın adımı yaz."></textarea><button class="btn btn-primary wide" onclick="MathApp.askQuestion()">Forumda paylaş</button><div id="q-status" class="mini-note"></div></div>
+    <div class="question-list glass-panel"><div class="result-head"><span>Son matematik soruları</span><button onclick="MathApp.loadQuestions()">Yenile</button></div><div id="math-questions">Yükleniyor…</div></div>
+  </section>
+</main>
+<footer class="math-footer"><div><img src="img/matematik-logo.svg" alt=""><b>Ortaokulluyuz Matematik</b><span>Ortaokulluyuz hesabınla giriş yap. İstatistiklerin aynı kalır.</span></div><div><a href="../index.html">Ortaokulluyuz</a><a href="mesajlar.html">Mesajlar</a><a class="platform-link" href="../index.html">Ortaokulluyuz ↗</a><a href="yonetim.html">Yönetim</a></div></footer>
+<script src="../js/app.bundle.js?v=14"></script>
+<script src="js/math-app.js?v=1"></script>
+</body>
+</html>

@@ -118,6 +118,7 @@ const DDL = [
     id BIGSERIAL PRIMARY KEY, arama_id VARCHAR(64) NOT NULL REFERENCES sesli_arama(id) ON DELETE CASCADE, gonderen_id INT NOT NULL, sinyal JSONB NOT NULL, olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`,
   `CREATE INDEX IF NOT EXISTS idx_sesli_sinyal_arama ON sesli_sinyal (arama_id, id)`,
+  `CREATE TABLE IF NOT EXISTS matematik_istatistik (kullanici_id INT PRIMARY KEY, hesap INT NOT NULL DEFAULT 0, ai INT NOT NULL DEFAULT 0, soru INT NOT NULL DEFAULT 0, geometri INT NOT NULL DEFAULT 0, pi INT NOT NULL DEFAULT 0, son_guncelleme TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
 ];
 
 function govdeOku(req) {

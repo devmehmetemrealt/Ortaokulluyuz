@@ -95,6 +95,10 @@ const ISLEM_KODLARI = {
   'avatar-sil': 'a36',
   'devtools-rapor': 'a37',
   'ip-durum': 'a38',
+  'matematik-ozet': 'b1',
+  'matematik-etkinlik': 'b2',
+  'matematik-ai': 'b3',
+  'matematik-admin-ozet': 'b4',
 };
 const KOD_ISLEMLERI = Object.fromEntries(Object.entries(ISLEM_KODLARI).map(([k, v]) => [v, k]));
 
@@ -403,6 +407,78 @@ async function guvenlikSemasiHazirla() {
   return _guvenlikSchemaReady;
 }
 
+
+// Matematik platformu için ortak hesap/istatistik şeması.
+let _matematikSchemaReady = null;
+async function matematikSemasiHazirla() {
+  if (_matematikSchemaReady) return _matematikSchemaReady;
+  _matematikSchemaReady = (async () => {
+    const p = pool();
+    await p.query(`CREATE TABLE IF NOT EXISTS platform_istatistik (
+      kullanici_id INT NOT NULL,
+      platform VARCHAR(32) NOT NULL,
+      anahtar VARCHAR(64) NOT NULL,
+      sayac BIGINT NOT NULL DEFAULT 0,
+      son_etki TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (kullanici_id, platform, anahtar)
+    )`);
+    await p.query('CREATE INDEX IF NOT EXISTS idx_platform_istatistik_user ON platform_istatistik (kullanici_id, platform, son_etki DESC)');
+    await p.query(`CREATE TABLE IF NOT EXISTS matematik_ai_log (
+      id BIGSERIAL PRIMARY KEY,
+      kullanici_id INT NOT NULL,
+      mod VARCHAR(24) NOT NULL,
+      sinif SMALLINT NULL,
+      sure_ms INT NULL,
+      basarili BOOLEAN NOT NULL DEFAULT FALSE,
+      olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await p.query('CREATE INDEX IF NOT EXISTS idx_matematik_ai_log_user ON matematik_ai_log (kullanici_id, olusturma DESC)');
+  })().catch(err => { _matematikSchemaReady = null; throw err; });
+  return _matematikSchemaReady;
+}
+
+function aiYapilandirma() {
+  return {
+    url: String(process.env.GEMINI_API_URL || 'https://generativelanguage.googleapis.com/v1beta').trim(),
+    key: String(process.env.GEMINI_API_KEY || '').trim(),
+    model: String(process.env.GEMINI_MATH_MODEL || 'gemini-3.5-flash-lite').trim()
+  };
+}
+function aiMetinCikar(yanit) {
+  if (!yanit || !Array.isArray(yanit.candidates)) return '';
+  const parts=[];
+  for (const candidate of yanit.candidates) {
+    const content=candidate && candidate.content;
+    if (!content || !Array.isArray(content.parts)) continue;
+    for (const part of content.parts) if (typeof part.text === 'string') parts.push(part.text);
+  }
+  return parts.join('\n').trim();
+}
+async function matematikAICoz({prompt, gorsel, sinif, konu, mod}) {
+  const cfg=aiYapilandirma();
+  if (!cfg.key) return {ok:false,status:503,hata:'Matematik AI henüz yapılandırılmadı. Vercel GEMINI_API_KEY değişkenini ekleyin.'};
+  if (prompt.length > 1800) return {ok:false,status:400,hata:'İstek metni çok uzun.'};
+  if (gorsel && gorsel.length > 2800000) return {ok:false,status:413,hata:'Görsel çok büyük. En fazla 2 MB civarında bir görsel kullanın.'};
+
+  const sistem=`Sen Ortaokulluyuz Matematik platformunun eğitim asistanısın. 5-8. sınıf öğrencisine uygun konuş. Soruyu çöz; sonucu uydurma, aritmetik işlemleri kontrol et. Öğrenciden gizli düşünce zincirini verme; bunun yerine kısa ve doğrulanabilir çözüm adımlarını göster. Gerekiyorsa formülü yaz, verilenleri ve sonucu ayır. Mod: ${mod==='page'?'sayfadaki tüm matematik sorularını ayıkla ve her birini numaralandır':'tek soruyu çöz'}. Sınıf: ${sinif}. Konu: ${konu || 'belirtilmemiş'}.`;
+  const parts=[{text:sistem+'\n\nÖğrenci isteği: '+(prompt || 'Görseldeki matematik sorusunu çöz ve adım adım açıkla.')}];
+  if (gorsel) {
+    const match=gorsel.match(/^data:(image\/(?:png|jpeg|webp));base64,(.+)$/i);
+    if (!match) return {ok:false,status:400,hata:'Görsel biçimi geçersiz.'};
+    parts.push({inline_data:{mime_type:match[1],data:match[2]}});
+  }
+  const endpoint=`${cfg.url.replace(/\/$/,'')}/models/${encodeURIComponent(cfg.model)}:generateContent?key=${encodeURIComponent(cfg.key)}`;
+  const body={contents:[{role:'user',parts}],generationConfig:{temperature:0.15,maxOutputTokens:2200}};
+  let r;
+  try { r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); }
+  catch(e){ return {ok:false,status:502,hata:'Gemini AI servisine ulaşılamadı.',ayrinti:String(e?.message||'').slice(0,180)}; }
+  const txt=await r.text().catch(()=>'' ); let j=null; try{j=txt?JSON.parse(txt):null}catch(e){}
+  if(!r.ok) return {ok:false,status:r.status,hata:'Gemini AI servisi hata verdi (HTTP '+r.status+').',ayrinti:(j?.error?.message||'').slice(0,260)};
+  const cevap=aiMetinCikar(j);
+  if(!cevap) return {ok:false,status:502,hata:'Gemini yanıt verdi ancak çözülebilir metin bulunamadı.'};
+  return {ok:true,cevap:cevap.slice(0,12000)};
+}
+
 // ---------- telefon (TextBee / NetGSM SMS) ----------
 function telefonNormalize(t) {
   t = String(t || '').replace(/\D/g, '');
@@ -596,7 +672,11 @@ module.exports = async (req, res) => {
       'sesli-arama-sinyal': [90, 1],
       'sikayet-et': [10, 10],
       'avatar-guncelle': [6, 10],
-      'avatar-sil': [6, 10]
+      'avatar-sil': [6, 10],
+      'matematik-ai': [12, 10],
+      'matematik-etkinlik': [90, 1],
+      'matematik-ozet': [30, 1],
+      'matematik-admin-ozet': [20, 1]
     };
     if (ozelLimit[islem]) {
       const [limit, dakika] = ozelLimit[islem];
@@ -610,6 +690,37 @@ module.exports = async (req, res) => {
       case 'ip-durum': {
         const b = await ipBaniKontrol(client, req);
         return gonder(res, 200, { ok: true, engelli: !b.ok, yonetici: !!b.admin, bitis: b.bitis || 0 });
+      }
+
+      case 'matematik-ozet': {
+        const k = await oturum(req);
+        if (!k) return hata(res, 'Bu işlem için giriş yapmalısınız.', 401);
+        await client.query(`CREATE TABLE IF NOT EXISTS matematik_istatistik (kullanici_id INT PRIMARY KEY, hesap INT NOT NULL DEFAULT 0, ai INT NOT NULL DEFAULT 0, soru INT NOT NULL DEFAULT 0, geometri INT NOT NULL DEFAULT 0, pi INT NOT NULL DEFAULT 0, son_guncelleme TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+        const m = (await client.query('SELECT * FROM matematik_istatistik WHERE kullanici_id = $1', [k.id])).rows[0] || {hesap:0,ai:0,soru:0,geometri:0,pi:0};
+        const q = await client.query("SELECT COUNT(*)::int AS n FROM sorular WHERE yazar_id=$1 AND ders='matematik'", [k.id]);
+        const all = await client.query("SELECT COUNT(*)::int AS n FROM sorular WHERE yazar_id=$1", [k.id]);
+        return gonder(res, 200, {ok:true, metrikler:{hesap:Number(m.hesap||0), ai:Number(m.ai||0), soru:Number(m.soru||q.rows[0].n||0), geometri:Number(m.geometri||0), pi:Number(m.pi||0)}, ortak:{toplamSorular:Number(all.rows[0].n||0)}});
+      }
+
+      case 'matematik-etkinlik': {
+        const k = await oturum(req);
+        if (!k) return hata(res, 'Bu işlem için giriş yapmalısınız.', 401);
+        const anahtar = String(g('anahtar','')).replace(/[^a-z0-9_\-]/gi,'').slice(0,40);
+        const artis = Math.min(10, Math.max(1, Number(g('artis',1))||1));
+        const allowed = ['hesap_cozumu','ai_analiz','soru_paylasim','geometri_araci','pi_hesap'];
+        if (!allowed.includes(anahtar)) return hata(res,'Geçersiz etkinlik.');
+        await client.query(`CREATE TABLE IF NOT EXISTS matematik_istatistik (kullanici_id INT PRIMARY KEY, hesap INT NOT NULL DEFAULT 0, ai INT NOT NULL DEFAULT 0, soru INT NOT NULL DEFAULT 0, geometri INT NOT NULL DEFAULT 0, pi INT NOT NULL DEFAULT 0, son_guncelleme TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+        const col={hesap_cozumu:'hesap',ai_analiz:'ai',soru_paylasim:'soru',geometri_araci:'geometri',pi_hesap:'pi'}[anahtar];
+        await client.query(`INSERT INTO matematik_istatistik (kullanici_id, ${col}) VALUES ($1,$2) ON CONFLICT (kullanici_id) DO UPDATE SET ${col}=matematik_istatistik.${col}+$2, son_guncelleme=NOW()`,[k.id,artis]);
+        return gonder(res,200,{ok:true});
+      }
+
+      case 'matematik-admin-ozet': {
+        const k=await oturum(req); if(!k || k.rol!=='admin') return hata(res,'Yetkisiz işlem.',403);
+        await client.query(`CREATE TABLE IF NOT EXISTS matematik_istatistik (kullanici_id INT PRIMARY KEY, hesap INT NOT NULL DEFAULT 0, ai INT NOT NULL DEFAULT 0, soru INT NOT NULL DEFAULT 0, geometri INT NOT NULL DEFAULT 0, pi INT NOT NULL DEFAULT 0, son_guncelleme TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+        const s=await client.query('SELECT COALESCE(SUM(hesap),0)::int hesap, COALESCE(SUM(ai),0)::int ai, COALESCE(SUM(soru),0)::int soru, COALESCE(SUM(geometri),0)::int geometri, COALESCE(SUM(pi),0)::int pi, COUNT(*)::int aktif FROM matematik_istatistik');
+        const son=await client.query('SELECT m.*,u.ad FROM matematik_istatistik m LEFT JOIN uyeler u ON u.id=m.kullanici_id ORDER BY m.son_guncelleme DESC LIMIT 20');
+        return gonder(res,200,{ok:true,istatistik:s.rows[0],son:son.rows});
       }
 
       case 'devtools-rapor': {
@@ -1049,6 +1160,54 @@ module.exports = async (req, res) => {
         const l = await client.query('SELECT sinif, ders, kitap_id, goruntuleme, acma, favori, indirme, son_etki FROM kullanici_tercih WHERE kullanici_id = $1 ORDER BY son_etki DESC LIMIT 500', [k.id]);
         const kayitlar = l.rows.map(r => ({ ...r, puan: Number(r.goruntuleme||0) + Number(r.acma||0)*3 + Number(r.favori||0)*6 + Number(r.indirme||0)*2 }));
         return gonder(res, 200, { ok: true, kayitlar });
+      }
+
+
+      case 'matematik-ozet': {
+        await matematikSemasiHazirla();
+        const k = await oturum(req); if (!k) return hata(res,'Bu işlem için giriş yapmalısınız.',401);
+        const l = await client.query(`SELECT anahtar, sayac, son_etki FROM platform_istatistik WHERE kullanici_id=$1 AND platform='matematik' ORDER BY son_etki DESC`,[k.id]);
+        const m={}; l.rows.forEach(r=>{m[r.anahtar]=Number(r.sayac||0)});
+        const all = Object.values(m).reduce((a,b)=>a+b,0);
+        const common = (await client.query(`SELECT sinif, SUM(goruntuleme+acma*3+favori*6+indirme*2) puan FROM kullanici_tercih WHERE kullanici_id=$1 GROUP BY sinif ORDER BY puan DESC LIMIT 1`,[k.id])).rows[0];
+        return gonder(res,200,{ok:true,metrikler:m,toplam_aktivite:all,en_cok_sinif:common?Number(common.sinif):null});
+      }
+      case 'matematik-etkinlik': {
+        await matematikSemasiHazirla();
+        const k = await oturum(req); if (!k) return hata(res,'Bu işlem için giriş yapmalısınız.',401);
+        const anahtar=String(g('anahtar','')).slice(0,64); const artis=Math.max(1,Math.min(10,Number(g('artis',1))||1));
+        const izinli=['ai_analiz','hesap_cozumu','pi_baslat','pi_hesapla','geometri_araci','soru_paylasim','sinif_secim','reader_ac'];
+        if(!izinli.includes(anahtar)) return hata(res,'Geçersiz matematik etkinliği.');
+        await client.query(`INSERT INTO platform_istatistik (kullanici_id,platform,anahtar,sayac) VALUES ($1,'matematik',$2,$3)
+          ON CONFLICT (kullanici_id,platform,anahtar) DO UPDATE SET sayac=platform_istatistik.sayac+EXCLUDED.sayac, son_etki=NOW()`,[k.id,anahtar,artis]);
+        return gonder(res,200,{ok:true});
+      }
+      case 'matematik-ai': {
+        await matematikSemasiHazirla();
+        const k = await oturum(req); if (!k) return hata(res,'AI araçlarını kullanmak için giriş yapmalısınız.',401);
+        const mod=String(g('mod','one'))==='page'?'page':'one'; const sinif=Number(g('sinif',6)); const konu=String(g('konu','')).slice(0,120); const prompt=String(g('prompt','')).trim(); const gorsel=g('gorsel',null);
+        if(![5,6,7,8].includes(sinif)) return hata(res,'Geçersiz sınıf.');
+        if(!prompt && !gorsel) return hata(res,'Bir soru metni veya görsel gerekli.');
+        const started=Date.now();
+        try {
+          const r=await matematikAICoz({prompt,gorsel,sinif,konu,mod});
+          await client.query('INSERT INTO matematik_ai_log (kullanici_id,mod,sinif,sure_ms,basarili) VALUES ($1,$2,$3,$4,$5)',[k.id,mod,sinif,Date.now()-started,!!r.ok]);
+          if(!r.ok) return hata(res,r.hata||'AI isteği başarısız.',r.status||502,'AI_ERROR');
+          return gonder(res,200,{ok:true,cevap:r.cevap,sure_ms:Date.now()-started});
+        } catch(e) {
+          await client.query('INSERT INTO matematik_ai_log (kullanici_id,mod,sinif,sure_ms,basarili) VALUES ($1,$2,$3,$4,FALSE)',[k.id,mod,sinif,Date.now()-started]);
+          throw e;
+        }
+      }
+      case 'matematik-admin-ozet': {
+        await matematikSemasiHazirla();
+        const k=await oturum(req); if(!k || k.rol!=='admin') return hata(res,'Yetkisiz işlem.',403);
+        const toplam=(await client.query(`SELECT COALESCE(SUM(sayac),0) n FROM platform_istatistik WHERE platform='matematik'`)).rows[0];
+        const ai=(await client.query(`SELECT COUNT(*) n FROM matematik_ai_log`)).rows[0];
+        const hesap=(await client.query(`SELECT COALESCE(SUM(sayac),0) n FROM platform_istatistik WHERE platform='matematik' AND anahtar='hesap_cozumu'`)).rows[0];
+        const soru=(await client.query(`SELECT COUNT(*) n FROM sorular WHERE ders='matematik'`)).rows[0];
+        const son=(await client.query(`SELECT id,mod,sinif,sure_ms,basarili,olusturma FROM matematik_ai_log ORDER BY olusturma DESC LIMIT 40`)).rows;
+        return gonder(res,200,{ok:true,istatistik:{toplam:Number(toplam.n),ai:Number(ai.n),hesap:Number(hesap.n),soru:Number(soru.n)},son_ai:son});
       }
 
       case 'sesli-yapilandirma': {

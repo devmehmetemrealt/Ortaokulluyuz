@@ -36,6 +36,7 @@ const Layout = {
     <nav class="ust-menu">
       <a data-nav="index" href="index.html">Anasayfa</a>
       <a data-nav="kitaplar" href="kitaplar.html">Tüm Kitaplar</a>
+      <a data-nav="matematik" href="matematik/">Matematik</a>
       <a data-nav="sinif-5" href="sinif-5.html">5. Sınıf</a>
       <a data-nav="sinif-6" href="sinif-6.html">6. Sınıf</a>
       <a data-nav="sinif-7" href="sinif-7.html">7. Sınıf</a>
@@ -53,6 +54,7 @@ const Layout = {
       <option value="">Menüye git…</option>
       <option value="index.html">Anasayfa</option>
       <option value="kitaplar.html">Tüm Kitaplar</option>
+      <option value="matematik/">Ortaokulluyuz Matematik</option>
       <option value="sinif-5.html">5. Sınıf Kitapları</option>
       <option value="sinif-6.html">6. Sınıf Kitapları</option>
       <option value="sinif-7.html">7. Sınıf Kitapları</option>
@@ -77,7 +79,7 @@ const Layout = {
     </div>
     <div>
       <div class="alt-baslik">Sayfalar</div>
-      <div class="alt-metin"><a href="kitaplar.html">Tüm Kitaplar</a> • <a href="odevler.html">Hazır Ödevler</a> • <a href="forum.html">Ödev Forumu</a> • <a href="mesajlar.html">Mesajlar</a> • <a href="profil.html">Profilim</a> • <a href="yardim.html">Yardım</a></div>
+      <div class="alt-metin"><a href="kitaplar.html">Tüm Kitaplar</a> • <a href="matematik/">Ortaokulluyuz Matematik</a> • <a href="odevler.html">Hazır Ödevler</a> • <a href="forum.html">Ödev Forumu</a> • <a href="mesajlar.html">Mesajlar</a> • <a href="profil.html">Profilim</a> • <a href="yardim.html">Yardım</a></div>
       <div class="alt-metin"><a href="sinif-5.html">5. Sınıf</a> • <a href="sinif-6.html">6. Sınıf</a> • <a href="sinif-7.html">7. Sınıf</a> • <a href="sinif-8.html">8. Sınıf</a> • <a href="secmeli.html">Seçmeli Dersler</a></div>
     </div>
     <div>

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-label="Ortaokulluyuz Matematik logosu">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#19c3a1"/><stop offset=".55" stop-color="#4b7bec"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs>
+  <rect x="8" y="8" width="164" height="164" rx="48" fill="#0b1733"/>
+  <circle cx="132" cy="48" r="20" fill="url(#g)" opacity=".95"/>
+  <path d="M48 122V58c0-8 6-14 14-14h54c8 0 14 6 14 14v64" fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round"/>
+  <path d="M56 94h72M91 44v78" fill="none" stroke="url(#g)" stroke-width="11" stroke-linecap="round"/>
+  <circle cx="91" cy="94" r="7" fill="#fff"/>
+</svg>

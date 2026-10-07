@@ -156,3 +156,24 @@ CREATE TABLE IF NOT EXISTS guvenlik_ip_yasak (
   olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_guvenlik_ip_yasak_bitis ON guvenlik_ip_yasak (bitis);
+
+CREATE TABLE IF NOT EXISTS platform_istatistik (
+  kullanici_id INT NOT NULL,
+  platform VARCHAR(32) NOT NULL,
+  anahtar VARCHAR(64) NOT NULL,
+  sayac BIGINT NOT NULL DEFAULT 0,
+  son_etki TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (kullanici_id, platform, anahtar)
+);
+CREATE INDEX IF NOT EXISTS idx_platform_istatistik_user ON platform_istatistik (kullanici_id, platform, son_etki DESC);
+
+CREATE TABLE IF NOT EXISTS matematik_ai_log (
+  id BIGSERIAL PRIMARY KEY,
+  kullanici_id INT NOT NULL,
+  mod VARCHAR(24) NOT NULL,
+  sinif SMALLINT NULL,
+  sure_ms INT NULL,
+  basarili BOOLEAN NOT NULL DEFAULT FALSE,
+  olusturma TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_matematik_ai_log_user ON matematik_ai_log (kullanici_id, olusturma DESC);
