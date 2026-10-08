@@ -61,7 +61,50 @@
   function handleImage(ev){const f=ev.target.files?.[0];if(!f)return;if(!/^image\/(png|jpeg|webp)$/i.test(f.type)||f.size>2*1024*1024){showAIStatus('PNG/JPG/WebP ve 2 MB sınırı.');return}const rd=new FileReader();rd.onload=()=>{state.img=rd.result;const p=document.getElementById('ai-preview');p.src=rd.result;p.classList.remove('hidden');document.getElementById('ai-image-stage').classList.remove('hidden');document.getElementById('reader-empty').classList.add('hidden');document.getElementById('ai-selector').classList.remove('hidden');document.getElementById('ai-final-image').removeAttribute('src');document.getElementById('ai-visual-result').classList.add('hidden');};rd.readAsDataURL(f)}
   function aiMode(btn,mode){state.aiMode=mode;document.querySelectorAll('.selector-btn').forEach(x=>x.classList.toggle('active',x===btn));}
   function showAIStatus(t){const e=document.getElementById('ai-status');if(e)e.textContent=t}
-  function drawAIResult(data){const img=document.getElementById('ai-preview'),canvas=document.getElementById('ai-annotated'),final=document.getElementById('ai-final-image');if(!img||!canvas)return;const finish=()=>{canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0);ctx.font=`700 ${Math.max(18,Math.round(img.naturalWidth/45))}px Arial`;ctx.textBaseline='middle';for(const m of (data.isaretlemeler||[])){const x=m.x*canvas.width,y=m.y*canvas.height,w=Math.max(24,m.w*canvas.width),h=Math.max(22,m.h*canvas.height);ctx.lineWidth=Math.max(3,canvas.width/500);ctx.strokeStyle=m.tur==='sik'||m.dogru?'#16a34a':'#315ee7';ctx.fillStyle='rgba(255,255,255,.88)';if(m.tur==='sik'||m.tur==='isaret'){ctx.beginPath();ctx.arc(x+w/2,y+h/2,Math.min(w,h)*.38,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#15803d';ctx.fillText('✓',x+w/2-10,y+h/2)}else{ctx.fillStyle='rgba(255,255,255,.92)';ctx.strokeRect(x,y,w,h);ctx.fillStyle='#183b70';ctx.fillText(m.metin||'',x+8,y+h/2)} }final.src=canvas.toDataURL('image/png');document.getElementById('ai-visual-result').classList.remove('hidden')};if(img.complete&&img.naturalWidth)finish();else img.onload=finish}
+  function drawAIResult(data){
+    const img=document.getElementById('ai-preview'),canvas=document.getElementById('ai-annotated'),final=document.getElementById('ai-final-image');
+    if(!img||!canvas||!final)return;
+    const finish=()=>{
+      if(!img.naturalWidth||!img.naturalHeight)return;
+      const w=img.naturalWidth,h=img.naturalHeight;
+      canvas.width=w; canvas.height=h;
+      const ctx=canvas.getContext('2d',{alpha:false});
+      ctx.clearRect(0,0,w,h);
+      ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
+      ctx.drawImage(img,0,0,w,h);
+      ctx.textBaseline='middle';
+      const marks=Array.isArray(data?.isaretlemeler)?data.isaretlemeler:[];
+      for(const m of marks){
+        const x=Math.max(0,Math.min(w-1,Number(m.x||0)*w));
+        const y=Math.max(0,Math.min(h-1,Number(m.y||0)*h));
+        const mw=Math.max(28,Math.min(w-x,Number(m.w||.12)*w));
+        const mh=Math.max(24,Math.min(h-y,Number(m.h||.06)*h));
+        const good=m.tur==='sik'||m.dogru;
+        ctx.lineWidth=Math.max(3,w/500);
+        if(m.tur==='sik'||m.tur==='isaret'){
+          ctx.strokeStyle=good?'#16a34a':'#315ee7';
+          ctx.fillStyle='rgba(255,255,255,.72)';
+          ctx.beginPath();ctx.ellipse(x+mw/2,y+mh/2,mw*.42,mh*.42,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+          ctx.fillStyle=good?'#15803d':'#315ee7';
+          ctx.font=`800 ${Math.max(24,Math.round(Math.min(mw,mh)*.72))}px Arial`;
+          ctx.textAlign='center';ctx.fillText('✓',x+mw/2,y+mh/2+1);ctx.textAlign='start';
+        }else{
+          ctx.fillStyle='rgba(255,255,255,.94)';ctx.strokeStyle='#315ee7';ctx.strokeRect(x,y,mw,mh);ctx.fillRect(x,y,mw,mh);
+          ctx.strokeStyle='#315ee7';ctx.strokeRect(x,y,mw,mh);
+          ctx.fillStyle='#183b70';ctx.font=`700 ${Math.max(18,Math.round(Math.min(mw,mh)*.48))}px Arial`;
+          ctx.fillText(String(m.metin||'').replace(/[\$`]/g,''),x+Math.max(6,w/250),y+mh/2);
+        }
+      }
+      const url=canvas.toDataURL('image/png');
+      final.onload=()=>document.getElementById('ai-visual-result')?.classList.remove('hidden');
+      final.src=url;
+      document.getElementById('ai-visual-result')?.classList.remove('hidden');
+      // Overlay canvas is also shown in the main preview so the user immediately sees the result.
+      canvas.classList.remove('hidden');
+    };
+    if(img.complete&&img.naturalWidth) finish();
+    else img.addEventListener('load',finish,{once:true});
+  }
   async function analyzeImage(){if(!state.user){location.href='../giris.html?donus=matematik/';return}if(!state.img){showAIStatus('Önce bir görsel seç.');return}const grade=Number(document.getElementById('ai-grade').value);const topic=document.getElementById('ai-topic').value;const prompt=document.getElementById('ai-prompt').value.trim()||'Fotoğraftaki soruyu çöz, doğru cevabı fotoğrafta doğru yere göster ve altta temiz, öğrencinin anlayacağı şekilde adım adım anlat.';showAIStatus('AI fotoğrafı inceliyor ve cevapları fotoğrafın üzerine yerleştiriyor…');document.getElementById('ai-result').textContent='Çözüm hazırlanıyor…';const j=await Api.ai({mod:state.aiMode,sinif:grade,konu:topic,prompt,gorsel:state.img});if(j.ok){state.aiResult=(j.aciklama||j.cevap||'').replace(/[\$`]/g,'');document.getElementById('ai-result').textContent=(j.ozet?j.ozet+'\n\n':'')+state.aiResult;drawAIResult(j);showAIStatus(`${j.bulunan_soru_sayisi||0} soru işlendi.`);await Api.event('ai_analiz');}else{document.getElementById('ai-result').textContent=j.hata||'AI isteği başarısız.';showAIStatus(j.hata||'AI isteği başarısız.')}refreshStats()}
   function clearReader(){state.img=null;document.getElementById('ai-image').value='';document.getElementById('ai-preview').classList.add('hidden');document.getElementById('ai-image-stage').classList.add('hidden');document.getElementById('reader-empty').classList.remove('hidden');document.getElementById('ai-selector').classList.add('hidden');document.getElementById('ai-visual-result').classList.add('hidden');document.getElementById('ai-result').textContent='Bir görsel yükleyip çözüm isteyin.';showAIStatus('Hazır.')}
   async function copyResult(){await navigator.clipboard?.writeText(state.aiResult||document.getElementById('ai-result').textContent||'')}
