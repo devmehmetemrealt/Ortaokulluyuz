@@ -444,39 +444,65 @@ function aiYapilandirma() {
     model: String(process.env.GEMINI_MATH_MODEL || 'gemini-3.5-flash-lite').trim()
   };
 }
-function aiMetinCikar(yanit) {
-  if (!yanit || !Array.isArray(yanit.candidates)) return '';
-  const parts=[];
+function aiJSONCikar(yanit) {
+  if (!yanit || !Array.isArray(yanit.candidates)) return null;
+  const chunks=[];
   for (const candidate of yanit.candidates) {
-    const content=candidate && candidate.content;
-    if (!content || !Array.isArray(content.parts)) continue;
-    for (const part of content.parts) if (typeof part.text === 'string') parts.push(part.text);
+    const parts=candidate?.content?.parts;
+    if (!Array.isArray(parts)) continue;
+    for (const part of parts) if (typeof part.text === 'string') chunks.push(part.text);
   }
-  return parts.join('\n').trim();
+  const raw=chunks.join('\n').trim();
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch (_) {}
+  const cleaned=raw.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'').trim();
+  try { return JSON.parse(cleaned); } catch (_) {}
+  const a=cleaned.indexOf('{'), b=cleaned.lastIndexOf('}');
+  if(a>=0 && b>a){ try{return JSON.parse(cleaned.slice(a,b+1));}catch(_){} }
+  return null;
+}
+function temizAIJSON(x, mod) {
+  const obj=(x && typeof x==='object')?x:{};
+  const clamp=(n,d=0)=>Math.max(0,Math.min(1,Number.isFinite(Number(n))?Number(n):d));
+  const marks=Array.isArray(obj.isaretlemeler)?obj.isaretlemeler:[];
+  const isaretlemeler=marks.slice(0,80).map(m=>({
+    tur:['cevap','sik','doldur','isaret'].includes(m?.tur)?m.tur:'cevap',
+    x:clamp(m?.x),y:clamp(m?.y),w:clamp(m?.w,0.12),h:clamp(m?.h,0.06),
+    metin:String(m?.metin||'').replace(/[\$`]/g,'').slice(0,180),
+    renk:String(m?.renk||'blue').slice(0,20),
+    dogru:!!m?.dogru
+  }));
+  const aciklama=String(obj.aciklama||obj.cozum||'').replace(/```[\s\S]*?```/g,'').replace(/\$/g,'').trim().slice(0,12000);
+  const ozet=String(obj.ozet||obj.cevap||'').replace(/[\$`]/g,'').trim().slice(0,500);
+  return {ozet,aciklama,isaretlemeler,bulunan_soru_sayisi:Math.max(0,Math.min(100,Number(obj.bulunan_soru_sayisi)||isaretlemeler.length))};
 }
 async function matematikAICoz({prompt, gorsel, sinif, konu, mod}) {
   const cfg=aiYapilandirma();
   if (!cfg.key) return {ok:false,status:503,hata:'Matematik AI henüz yapılandırılmadı. Vercel GEMINI_API_KEY değişkenini ekleyin.'};
   if (prompt.length > 1800) return {ok:false,status:400,hata:'İstek metni çok uzun.'};
   if (gorsel && gorsel.length > 2800000) return {ok:false,status:413,hata:'Görsel çok büyük. En fazla 2 MB civarında bir görsel kullanın.'};
-
-  const sistem=`Sen Ortaokulluyuz Matematik platformunun eğitim asistanısın. 5-8. sınıf öğrencisine uygun konuş. Soruyu çöz; sonucu uydurma, aritmetik işlemleri kontrol et. Öğrenciden gizli düşünce zincirini verme; bunun yerine kısa ve doğrulanabilir çözüm adımlarını göster. Gerekiyorsa formülü yaz, verilenleri ve sonucu ayır. Mod: ${mod==='page'?'sayfadaki tüm matematik sorularını ayıkla ve her birini numaralandır':'tek soruyu çöz'}. Sınıf: ${sinif}. Konu: ${konu || 'belirtilmemiş'}.`;
-  const parts=[{text:sistem+'\n\nÖğrenci isteği: '+(prompt || 'Görseldeki matematik sorusunu çöz ve adım adım açıkla.')}];
-  if (gorsel) {
-    const match=gorsel.match(/^data:(image\/(?:png|jpeg|webp));base64,(.+)$/i);
-    if (!match) return {ok:false,status:400,hata:'Görsel biçimi geçersiz.'};
-    parts.push({inline_data:{mime_type:match[1],data:match[2]}});
-  }
+  const sistem=`Sen Ortaokulluyuz Matematik görsel çözüm motorusun. ${sinif}. sınıf seviyesine uygun, doğrulanabilir matematik çözümü üret.
+GÖREV: Verilen kitap/soru fotoğrafını incele. ${mod==='page'?'Sayfadaki TÜM matematik sorularını bul.':'En belirgin matematik sorusunu bul ve çöz.'}
+Fotoğrafa müdahale edilebilmesi için sorunun doğru bölgesine görsel koordinatlarla işaretleme üret. x,y,w,h değerleri fotoğrafın SOL-ÜST köşesine göre 0 ile 1 arasında normalize edilmiştir.
+- Boşluk doldurma: tur=doldur, metin=yerine yazılacak cevap.
+- Çoktan seçmeli: tur=sik, metin=işaretlenecek şık (örn. B), x/y/w/h şık kutusunu kapsamalı, dogru=true.
+- Sonuç veya kısa cevap: tur=cevap, metin=cevap.
+- Gerekirse sorunun yanında küçük bir sonuç etiketi için cevap işaretlemesi ekle.
+- Sayfanın yazısını yeniden üretmeye çalışma; yalnızca doğru cevapları ve işaretleri konumlandır.
+ÇOK ÖNEMLİ: YALNIZCA geçerli JSON döndür. Markdown, dolar işareti, LaTeX veya JSON dışı açıklama YASAK.
+JSON şeması: {"ozet":"kısa net sonuç","aciklama":"öğrencinin anlayacağı temiz adım adım çözüm","bulunan_soru_sayisi":1,"isaretlemeler":[{"tur":"cevap|sik|doldur|isaret","x":0,"y":0,"w":0.2,"h":0.08,"metin":"...","dogru":true}]}
+Konu: ${konu||'belirtilmemiş'}. Öğrenci isteği: ${prompt||'Fotoğraftaki soruyu çöz, fotoğrafta cevabı doğru yere göster ve altta temiz çözüm anlat.'}`;
+  const parts=[{text:sistem}];
+  if(gorsel){const match=gorsel.match(/^data:(image\/(?:png|jpeg|webp));base64,(.+)$/i);if(!match)return {ok:false,status:400,hata:'Görsel biçimi geçersiz.'};parts.push({inline_data:{mime_type:match[1],data:match[2]}})}
   const endpoint=`${cfg.url.replace(/\/$/,'')}/models/${encodeURIComponent(cfg.model)}:generateContent?key=${encodeURIComponent(cfg.key)}`;
-  const body={contents:[{role:'user',parts}],generationConfig:{temperature:0.15,maxOutputTokens:2200}};
-  let r;
-  try { r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); }
-  catch(e){ return {ok:false,status:502,hata:'Gemini AI servisine ulaşılamadı.',ayrinti:String(e?.message||'').slice(0,180)}; }
-  const txt=await r.text().catch(()=>'' ); let j=null; try{j=txt?JSON.parse(txt):null}catch(e){}
-  if(!r.ok) return {ok:false,status:r.status,hata:'Gemini AI servisi hata verdi (HTTP '+r.status+').',ayrinti:(j?.error?.message||'').slice(0,260)};
-  const cevap=aiMetinCikar(j);
-  if(!cevap) return {ok:false,status:502,hata:'Gemini yanıt verdi ancak çözülebilir metin bulunamadı.'};
-  return {ok:true,cevap:cevap.slice(0,12000)};
+  const body={contents:[{role:'user',parts}],generationConfig:{temperature:0.05,maxOutputTokens:3200,responseMimeType:'application/json'}};
+  let r; try{r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}catch(e){return {ok:false,status:502,hata:'Gemini AI servisine ulaşılamadı.'}}
+  const txt=await r.text().catch(()=>''), j=(()=>{try{return txt?JSON.parse(txt):null}catch(_){return null}})();
+  if(!r.ok)return {ok:false,status:r.status,hata:'Gemini AI servisi hata verdi (HTTP '+r.status+').',ayrinti:(j?.error?.message||'').slice(0,260)};
+  const parsed=aiJSONCikar(j); if(!parsed)return {ok:false,status:502,hata:'Gemini yanıtı beklenen JSON biçiminde değil.'};
+  const temiz=temizAIJSON(parsed,mod);
+  if(!temiz.aciklama && !temiz.ozet && !temiz.isaretlemeler.length)return {ok:false,status:502,hata:'Görselde çözülebilir matematik sorusu bulunamadı.'};
+  return {ok:true,cevap:temiz.aciklama,ozet:temiz.ozet,isaretlemeler:temiz.isaretlemeler,bulunan_soru_sayisi:temiz.bulunan_soru_sayisi};
 }
 
 // ---------- telefon (TextBee / NetGSM SMS) ----------

@@ -75,7 +75,7 @@
   <section class="reader-grid">
     <div class="reader-stage glass-panel" id="reader-stage">
       <div class="reader-empty" id="reader-empty"><div class="upload-icon">⌁</div><h3>Bir sayfa veya soru görseli bırak</h3><p>PNG, JPG veya WebP · en fazla 2 MB</p><label class="drop-upload"><input id="ai-image" type="file" accept="image/png,image/jpeg,image/webp">Görsel Seç</label></div>
-      <img id="ai-preview" class="ai-preview hidden" alt="AI analiz görseli">
+      <div class="ai-image-stage hidden" id="ai-image-stage"><img id="ai-preview" class="ai-preview" alt="Yüklenen soru görseli"><canvas id="ai-annotated" class="ai-annotated" aria-label="AI tarafından işaretlenmiş görsel"></canvas></div>
       <div id="ai-selector" class="ai-selector hidden"><div class="selector-box"><span>Bu görselde neyi çözeyim?</span><button class="selector-btn active" data-mode="one" onclick="MathApp.aiMode(this,'one')">Bir soru</button><button class="selector-btn" data-mode="page" onclick="MathApp.aiMode(this,'page')">Tüm sayfa</button></div></div>
     </div>
     <aside class="reader-side glass-panel">
@@ -88,7 +88,7 @@
       <div id="ai-status" class="mini-note">AI anahtarı Vercel'de tanımlıysa aktif olur.</div>
     </aside>
   </section>
-  <section class="ai-result glass-panel"><div class="result-head"><span>AI Çözümü</span><button onclick="MathApp.copyResult()">Kopyala</button></div><div id="ai-result">Bir görsel yükleyip çözüm isteyin.</div></section>
+  <section class="ai-result glass-panel"><div class="result-head"><span>AI Çözümü</span><button onclick="MathApp.copyResult()">Kopyala</button></div><div id="ai-visual-result" class="ai-visual-result hidden"><img id="ai-final-image" alt="AI tarafından çözülmüş görsel"><button class="btn btn-subtle" onclick="MathApp.downloadAIImage()">İşaretli görseli kaydet</button></div><div id="ai-result">Bir görsel yükleyip çözüm isteyin.</div></section>
 
   <section class="section-head" id="hesap"><div><span class="eyebrow">SMART CALC</span><h2>5–8. sınıf akıllı hesap makinesi.</h2><p>İşlemi gerçekten hesaplar; seçtiğin sınıfa göre açıklama dilini ve örnek çözüm biçimini değiştirir.</p></div></section>
   <section class="calculator-grid">
@@ -106,13 +106,13 @@
     <div class="calc-explain glass-panel"><div class="side-title"><span>Çözüm akışı</span><span id="calc-topic-badge" class="badge">5. sınıf</span></div><div id="calc-result" class="calc-result">Bir işlem gir. Örneğin <b>(24 + 18) / 6</b></div><div id="calc-steps" class="steps"></div></div>
   </section>
 
-  <section class="section-head" id="pi"><div><span class="eyebrow">π LAB</span><h2>Pi'yi gerçekten hesapla.</h2><p>Tarayıcıda BigInt ile Machin serisini iteratif olarak çalıştırır; her adımı ve ilerlemeyi görürsün.</p></div></section>
+  <section class="section-head" id="pi"><div><span class="eyebrow">π LAB</span><h2>Pi'yi gerçekten hesapla.</h2><p>BigInt ile gerçek bir yüksek hassasiyet hesabı yapar. Basamak sayısında uygulama tarafından yapay bir 500 sınırı yoktur; pratik sınır cihazının işlem gücü ve belleğidir.</p></div></section>
   <section class="pi-grid">
-    <div class="pi-panel glass-panel"><div class="pi-big">π</div><div class="pi-controls"><label>Basamak <input id="pi-digits" type="number" min="5" max="500" value="80"></label><button class="btn btn-primary" onclick="MathApp.piStart()">Hesapla</button></div><div class="progress"><span id="pi-progress"></span></div><div id="pi-stage" class="mini-note">Hazır.</div></div>
+    <div class="pi-panel glass-panel"><div class="pi-big">π</div><div class="pi-controls"><label>Basamak <input id="pi-digits" type="number" min="5" value="80" inputmode="numeric"></label><button class="btn btn-primary" onclick="MathApp.piStart()">Hesapla</button></div><div class="progress"><span id="pi-progress"></span></div><div id="pi-stage" class="mini-note">Hazır.</div></div>
     <div class="pi-output glass-panel"><div class="result-head"><span>Hesaplanan sonuç</span><button onclick="MathApp.copyPi()">Kopyala</button></div><pre id="pi-output">3.</pre><div id="pi-steps" class="pi-steps"></div></div>
   </section>
 
-  <section class="section-head" id="geometri"><div><span class="eyebrow">GEOMETRİ ATÖLYESİ</span><h2>Çiz, ölç, koordinatları incele.</h2><p>Doğru, çember, dikdörtgen ve nokta araçları; cetvel, açıölçer ve koordinat düzlemi.</p></div></section>
+  <section class="section-head" id="geometri"><div><span class="eyebrow">GEOMETRİ ATÖLYESİ</span><h2>Çiz, ölç, koordinatları incele.</h2><p>Önizleme, nokta yakalama, iki noktadan otomatik doğru, üç noktadan gerçek açı, çember yarıçapı/çapı/çevresi/alanı ve koordinat tabanlı ölçüm.</p></div></section>
   <section class="geo-wrap glass-panel">
     <div class="geo-toolbar"><button class="tool active" data-tool="select">Seç</button><button class="tool" data-tool="line">Doğru</button><button class="tool" data-tool="rect">Dikdörtgen</button><button class="tool" data-tool="circle">Çember</button><button class="tool" data-tool="point">Nokta</button><button class="tool" data-tool="ruler">Cetvel</button><button class="tool" data-tool="angle">Açı</button><button onclick="MathApp.geoClear()">Temizle</button></div>
     <div class="geo-canvas-wrap"><svg id="geo-svg" viewBox="0 0 1000 580" aria-label="Matematiksel çizim alanı"><defs><pattern id="smallGrid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="rgba(22,88,150,.08)" stroke-width="1"/></pattern><pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse"><rect width="100" height="100" fill="url(#smallGrid)"/><path d="M100 0H0V100" fill="none" stroke="rgba(22,88,150,.15)" stroke-width="1.5"/></pattern></defs><rect width="1000" height="580" fill="url(#grid)"/><line x1="500" y1="0" x2="500" y2="580" stroke="#0f568f" stroke-width="2" opacity=".4"/><line x1="0" y1="290" x2="1000" y2="290" stroke="#0f568f" stroke-width="2" opacity=".4"/><g id="geo-shapes"></g></svg></div>

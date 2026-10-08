@@ -52,3 +52,11 @@ Bu tablo ana `uyeler` hesabına bağlıdır. Kullanıcı hesabı değişmez; pla
 - Ortak mesajlaşma
 - Yönetim paneli ve matematik istatistikleri
 - Ana Ortaokulluyuz hesabına dönüş
+
+## V14.1 — AI Görsel Çözüm + Geometri + Sınırsız Pi
+- AI Reader Gemini'den yalnızca yapılandırılmış JSON ister; Markdown/LaTeX/$ artifaktları temizlenir.
+- Gemini fotoğraftaki soruları tespit eder ve cevap/şık/doldurma alanlarını normalize koordinatlarla işaretler.
+- Tarayıcı yüklenen görselin üzerine cevapları ve işaretleri çizip sonuç görseli üretir.
+- Çözüm metni görselin altında sade metin olarak gösterilir.
+- Geometri alanında nokta yakalama, iki son noktadan otomatik doğru, üç noktadan açı yayı ve ölçümü, çember yarıçapı/çap/çevre/alan ölçümleri bulunur.
+- Pi hesaplayıcıda uygulama tarafından 500 basamak limiti kaldırıldı. Chudnovsky + BigInt kullanılır; gerçek pratik sınır cihazın kaynaklarıdır.
